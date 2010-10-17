@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hello">Hello World, NodeDroid!</string>
+    <string name="app_name">Node Droid</string>
+<string name="plan">Plan:</string>
+<string name="quota">Quota:</string>
+<string name="usage">Usage:</string>
+<string name="rollover">Rollover:</string>
+<string name="history">History:</string>
+<string name="ipaddress">IP Address:</string>
+<string name="avgusage">Avg:</string>
+<string name="accountlist">Accounts</string>
+<string name="addaccountbutton">Add Account</string>
+<string name="username_editor">Username</string>
+<string name="password_editor">Password</string>
+<string name="userdialog_ok">Save</string>
+<string name="userdialog_cancel">Cancel</string>
+<string name="accountrequired">An account must be added before this application can operate.</string>
+<string name="accountrequired_ok">Add</string>
+<string name="accountrequired_cancel">Quit</string>
+<string name="userpasstitle">Account details</string>
+<string name="accountsmenuitem">Accounts</string>
+<string name="refreshmenuitem">Refresh</string>
+<string name="historyYear">year</string>
+<string name="historyMonth">month</string>
+<string name="providerTxt">Provider</string>
+<string name="data">Data</string>
+
+<string name="status_new">New</string>
+<string name="status_stale">Waiting</string>
+<string name="status_ok">Ok</string>
+<string name="status_failed">Auth Failed</string>
+<string name="status_error">Error</string>
+
+<string name="local_service_started">Service Started</string>
+<string name="local_service_stopped">Service Stopped</string>
+<string name="local_service_label">Service Label</string>
+<string name="local_service_connected">Connected to fetch service</string>
+<string name="local_service_disconnected">Disconnected from fetch service</string>
+
+</resources>

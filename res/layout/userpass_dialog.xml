@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent" android:layout_height="wrap_content"
+	android:orientation="vertical"
+	android:paddingLeft="5px"
+	android:paddingRight="5px"
+	>
+
+	<LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content">
+		<TextView  android:id="@+id/providerTxt" android:layout_width="wrap_content" android:layout_height="fill_parent" android:text="@string/providerTxt" android:gravity="center"/>
+	
+		<Spinner android:id="@+id/providerSpinner" android:layout_width="fill_parent" android:layout_height="wrap_content"
+		        android:drawSelectorOnTop="true"
+	        android:prompt="@string/providerTxt"
+		/>
+	</LinearLayout>
+	
+	
+	<EditText android:hint="@string/username_editor" android:id="@+id/username_editor"
+		android:layout_width="fill_parent" android:layout_height="wrap_content" 
+		android:capitalize="none" 
+		/>
+	<EditText android:hint="@string/password_editor" android:id="@+id/password_editor"
+		android:layout_width="fill_parent" android:layout_height="wrap_content" 
+		android:password="true" 
+		/>
+	<LinearLayout 
+		android:layout_width="fill_parent" android:layout_height="wrap_content"
+		android:gravity="center">
+		<Button android:text="@string/userdialog_ok" android:id="@+id/userdialog_ok"
+			android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+		<Button android:text="@string/userdialog_cancel" android:id="@+id/userdialog_cancel"
+			android:layout_width="wrap_content" android:layout_height="wrap_content"></Button>
+
+	</LinearLayout>
+
+
+
+</LinearLayout>

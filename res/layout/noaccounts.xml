@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:layout_width="fill_parent" android:layout_height="fill_parent"
+	android:orientation="vertical"
+	android:gravity="center"
+	>
+
+	<TextView
+		android:text="Welome to NodeDroid.  This application allows you to check your usage on one or more Internode Accounts.  To get started, please add an Internode account using the button below"
+		android:id="@+id/TextView01" android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:padding="8px"/>
+
+
+	<LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:gravity="center">
+		<Button android:text="@string/addaccountbutton"
+			android:id="@+id/addaccountbutton" android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			/>
+	</LinearLayout>
+</LinearLayout>
