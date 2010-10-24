@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.app.Application;
-import android.content.Intent;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
-import android.os.Binder;
 import android.os.Handler;
-import android.os.IBinder;
+import android.util.Log;
 
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.Service;
@@ -19,37 +18,43 @@ import com.eightbitcloud.internode.provider.ProviderFetcher;
  * This service is the component that is reponsible for making network connections.  It is done here so that
  * a change in orientation won't stop downloads.
  * 
- * It also acts as a data store for the Accounts, sharable between components.
+ * This used to be a proper service, but it isn't needed.  Instead, it now just is shared between activities...
  * @author bruce
  *
  */
-public class DataFetchService extends android.app.Service {
+public class DataFetcher  {
 
 //    private NotificationManager mNM;
     // This is the object that receives interactions from clients. See
     // RemoteService for a more complete example.
-    private final IBinder mBinder = new LocalBinder();
+//    private final IBinder mBinder = new LocalBinder();
     List<AccountUpdateListener> listeners = new ArrayList<AccountUpdateListener>();
     List<Account> accounts = new ArrayList<Account>();
     Handler handler = new Handler();
     SharedPreferences prefs;
     private List<Thread> runningThreads = new ArrayList<Thread>();
+//    
+//    /**
+//     * Class for clients to access. Because we know this service always runs in
+//     * the same process as its clients, we don't need to deal with IPC.
+//     */
+//    public class LocalBinder extends Binder {
+//        DataFetchService getService() {
+//            return DataFetchService.this;
+//        }
+//    }
+    private Context context;
     
-    /**
-     * Class for clients to access. Because we know this service always runs in
-     * the same process as its clients, we don't need to deal with IPC.
-     */
-    public class LocalBinder extends Binder {
-        DataFetchService getService() {
-            return DataFetchService.this;
-        }
+    public DataFetcher(Context ctx) {
+        this.context = ctx;
+        onCreate();
     }
 
-    @Override
+//    @Override
     public void onCreate() {
 //        mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
-        prefs = getApplication().getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
+        prefs = context.getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
         prefs.registerOnSharedPreferenceChangeListener(new OnSharedPreferenceChangeListener() {
             public void onSharedPreferenceChanged(SharedPreferences arg0, String arg1) {
                 PreferencesSerialiser.deserialise(prefs, accounts);
@@ -58,6 +63,8 @@ public class DataFetchService extends android.app.Service {
         });
         PreferencesSerialiser.deserialise(prefs, accounts);
 //        showNotification();
+        Log.i(NodeUsage.TAG, "Created Service.... Updating accounts");
+        updateAccounts();
     }
 
 //    @Override
@@ -81,10 +88,16 @@ public class DataFetchService extends android.app.Service {
         }
     }
     
+    
+    public void shutdown() {
+        this.onDestroy();
+    }
 
-    @Override
+//    @Override
     public void onDestroy() {
 //      sp.edit().putString("graphType", graphType.toString()).commit();
+        Log.i(NodeUsage.TAG, "Shutting down Background Fetch Service");
+        cancelRunningFetches();
         PreferencesSerialiser.serialise(accounts, prefs);
         
         // Cancel the persistent notification.
@@ -93,11 +106,11 @@ public class DataFetchService extends android.app.Service {
         // Tell the user we stopped.
 //        Toast.makeText(this, R.string.local_service_stopped, Toast.LENGTH_SHORT).show();
     }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
-    }
+//
+//    @Override
+//    public IBinder onBind(Intent intent) {
+//        return mBinder;
+//    }
 
     /**
      * Show a notification while this service is running.
@@ -132,6 +145,7 @@ public class DataFetchService extends android.app.Service {
     }
     
     public void updateAccounts() {
+        Log.i(NodeUsage.TAG, "Updating Services");
         cancelRunningFetches();
         for (Account account: accounts) {
             startFetch(new ServiceFetcher(account));

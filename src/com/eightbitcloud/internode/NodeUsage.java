@@ -10,18 +10,23 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.admob.android.ads.AdManager;
@@ -47,36 +52,36 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     private KeyStore trustStore;
     
     // LocalService test stuff
-    private DataFetchService dataFetcher;
-    private boolean mIsBound;
+    private DataFetcher dataFetcher;
+//    private boolean mIsBound;
 
-    private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) {
-            Log.i(TAG, "Bound to service. Have we checked accounts yet? " + checkedAccounts);
-            // This is called when the connection with the service has been
-            // established, giving us the service object we can use to
-            // interact with the service.  Because we have bound to a explicit
-            // service that we know is running in our own process, we can
-            // cast its IBinder to a concrete class and directly access it.
-            dataFetcher = ((DataFetchService.LocalBinder)service).getService();
-            // We want to monitor the service for as long as we are
-            // connected to it.
-            
-            dataFetcher.registerCallback(NodeUsage.this);
-            
-            checkAccounts(); 
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            // This is called when the connection with the service has been
-            // unexpectedly disconnected -- that is, its process crashed.
-            // Because it is running in our same process, we should never
-            // see this happen.
-            dataFetcher = null;
-        }
-    };
-
-    private boolean checkedAccounts;
+//    private ServiceConnection mConnection = new ServiceConnection() {
+//        public void onServiceConnected(ComponentName className, IBinder service) {
+//            Log.i(TAG, "Bound to service. Have we checked accounts yet? " + checkedAccounts);
+//            // This is called when the connection with the service has been
+//            // established, giving us the service object we can use to
+//            // interact with the service.  Because we have bound to a explicit
+//            // service that we know is running in our own process, we can
+//            // cast its IBinder to a concrete class and directly access it.
+//            dataFetcher = ((DataFetchService.LocalBinder)service).getService();
+//            // We want to monitor the service for as long as we are
+//            // connected to it.
+//            
+//            dataFetcher.registerCallback(NodeUsage.this);
+//            
+//            checkAccounts(); 
+//        }
+//
+//        public void onServiceDisconnected(ComponentName className) {
+//            // This is called when the connection with the service has been
+//            // unexpectedly disconnected -- that is, its process crashed.
+//            // Because it is running in our same process, we should never
+//            // see this happen.
+//            dataFetcher = null;
+//        }
+//    };
+//
+//    private boolean checkedAccounts;
 
     
 
@@ -87,6 +92,14 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.main);
+        if (isDisplayPortrait()) {
+            scroller = ((PagingScrollView)findViewById(R.id.scrollView));
+        } else {
+            ListView landscroller = (ListView) findViewById(R.id.landscroller);
+            
+            landscroller.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, new String[] {"One", "Two", "Three"}));
+
+        }
 
         internodeFont = Typeface.createFromAsset(getAssets(), "Arial Rounded Bold.ttf");
         handler = new Handler();
@@ -165,19 +178,30 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             }
         });
         
-//        flipper = (ViewFlipper) findViewById(R.id.serviceFlipper);
-        scroller = ((PagingScrollView)findViewById(R.id.scrollView));
-        
         
         // Establish a connection with the service.  We use an explicit
         // class name because we want a specific service implementation that
         // we know will be running in our own process (and thus won't be
         // supporting component replacement by other applications).
-        bindService(new Intent(NodeUsage.this, DataFetchService.class), mConnection, Context.BIND_AUTO_CREATE);
-        mIsBound = true;
-
-        
+     //   bindService(new Intent(NodeUsage.this, DataFetchService.class), mConnection, Context.BIND_AUTO_CREATE);
+      //  mIsBound = true;
+        dataFetcher = (DataFetcher) getLastNonConfigurationInstance();
+        if (dataFetcher == null) {
+            dataFetcher = new DataFetcher(this);
+        }
+        dataFetcher.registerCallback(this);
     }
+    
+    
+    /**
+     * This is used to keep the dataFetcher around when rotation is performed, so that we don't
+     * loose time restarting things in the middle.  
+     */
+    @Override
+    public Object onRetainNonConfigurationInstance() {
+        return dataFetcher;
+    }
+
     
     public View getLoadingServicesView() {
         if (loadingServicesView == null) {
@@ -187,7 +211,27 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         return loadingServicesView;
     }
 
-    
+    public boolean isDisplayPortrait() {
+        Configuration config = getResources().getConfiguration();
+        int orientation = config.orientation;
+
+        if (orientation == Configuration.ORIENTATION_UNDEFINED) {
+            Display getOrient = getWindowManager().getDefaultDisplay();
+            // if height and widht of screen are equal then
+            // it is square orientation
+            if (getOrient.getWidth() == getOrient.getHeight()) {
+                orientation = Configuration.ORIENTATION_SQUARE;
+            } else { // if widht is less than height than it is portrait
+                if (getOrient.getWidth() < getOrient.getHeight()) {
+                    orientation = Configuration.ORIENTATION_PORTRAIT;
+                } else { // if it is not any of the above it will defineitly
+                         // be landscape
+                    orientation = Configuration.ORIENTATION_LANDSCAPE;
+                }
+            }
+        }
+        return orientation == Configuration.ORIENTATION_PORTRAIT;
+    }
     
     public void addServiceView(ServiceView v) {
         scroller.addPage(v);
@@ -210,52 +254,39 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     public void onStart() {
         super.onStart();
-        
-        Log.d(TAG, "Starting. Do we have a dataFetcher? " + (dataFetcher != null));
-        checkAccounts(); 
-    }
-    
-    
-    public void checkAccounts() {
-        if (!checkedAccounts && dataFetcher != null) {
-           
-            Log.i(TAG, "Checking accounts.  Data Fetcher reports there are " + dataFetcher.accounts.size() + " accounts");
-            
-            scroller.removeAllPages();
-            serviceViews.clear();
-            if (dataFetcher.accounts.isEmpty()) {
-                LayoutInflater layoutInflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                View noaccountsView = layoutInflater.inflate(R.layout.noaccounts, null);
-                Button addButton = (Button) noaccountsView.findViewById(R.id.addaccountbutton);
-                addButton.setOnClickListener(new OnClickListener() {
-                    public void onClick(View v) {
-                        addFirstAccount(v);
-                    }
-                });
-                
-                scroller.addPage(noaccountsView);
-            } else {
-                int countServices = 0;
-                for (Account acct: dataFetcher.accounts) {
-                    for (Service service: acct.getAllServices()) {
-                        getViewForService(service);
-                        countServices++;
-                    }
-                }
-                if (countServices == 0) {
-                    scroller.addPage(getLoadingServicesView());
-                }
-            }
-    
-            dataFetcher.updateAccounts();
-            checkedAccounts = true;
+
+        // If we don't deregister the callbacklistener here, it will leak...
+        if (isDisplayPortrait()) {
+            updatePortraitAccountsView();
         }
     }
     
-    @Override
-    public void onPause() {
-        super.onPause();
-        Log.d(TAG, "Pausing");
+    public void updatePortraitAccountsView() {
+        scroller.removeAllPages();
+        serviceViews.clear();
+        if (dataFetcher.accounts.isEmpty()) {
+            LayoutInflater layoutInflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            View noaccountsView = layoutInflater.inflate(R.layout.noaccounts, null);
+            Button addButton = (Button) noaccountsView.findViewById(R.id.addaccountbutton);
+            addButton.setOnClickListener(new OnClickListener() {
+                public void onClick(View v) {
+                    addFirstAccount(v);
+                }
+            });
+            
+            scroller.addPage(noaccountsView);
+        } else {
+            int countServices = 0;
+            for (Account acct: dataFetcher.accounts) {
+                for (Service service: acct.getAllServices()) {
+                    getViewForService(service);
+                    countServices++;
+                }
+            }
+            if (countServices == 0) {
+                scroller.addPage(getLoadingServicesView());
+            }
+        }
     }
     
     /**
@@ -339,19 +370,22 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     }
     
 
-    void doUnbindService() {
-        if (mIsBound) {
-            // Detach our existing connection.
-            dataFetcher.deregisterCallback(this);
-            unbindService(mConnection);
-            mIsBound = false;
-        }
-    }
+//    void doUnbindService() {
+//        if (mIsBound) {
+//            // Detach our existing connection.
+//            if (dataFetcher != null) {
+//                dataFetcher.deregisterCallback(this);
+//            }
+//            unbindService(mConnection);
+//            mIsBound = false;
+//        }
+//    }
 
     @Override
     protected void onDestroy() {
+        dataFetcher.deregisterCallback(this);
         super.onDestroy();
-        doUnbindService();
+//        doUnbindService();
     }
 
     
@@ -375,22 +409,28 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     public void serviceLoadStarted(Service service) {
         Log.i(TAG, "Service " + service + " beginning update");
-        getViewForService(service).setLoading(true);
+        if (isDisplayPortrait()) {
+            getViewForService(service).setLoading(true);
+        }
         
     }
 
     public void serviceUpdatedCompletedSuccessfully(Service service) {
         Log.i(TAG, "Service " + service + " finished updating");
-        ServiceView sv = getViewForService(service); 
-        sv.setService(service);
-        sv.setLoading(false);
+        if (isDisplayPortrait()) {
+            ServiceView sv = getViewForService(service); 
+            sv.setService(service);
+            sv.setLoading(false);
+        }
     }
 
     public void errorUpdatingService(Service service, Exception ex) {
         Log.e(TAG, "Service " + service + " had error while refreshing", ex);
-        ServiceView sv = getViewForService(service); 
-        sv.setService(service);
-        sv.setLoading(false);
+        if (isDisplayPortrait()) {
+            ServiceView sv = getViewForService(service); 
+            sv.setService(service);
+            sv.setLoading(false);
+        }
         reportFatalException(ex);
     }
 
