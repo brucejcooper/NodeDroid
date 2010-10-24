@@ -15,7 +15,9 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -93,11 +95,11 @@ public class InternodeFetcher implements ProviderFetcher {
     
 
 
-    public Element request(URL url, Account account) throws IOException, ParserConfigurationException, IllegalStateException, SAXException {
+    public Element request(URL url, Account account) throws IOException, ParserConfigurationException, IllegalStateException, SAXException, InterruptedException {
         final HttpGet conn = new HttpGet(url.toString());
         conn.addHeader("Authorization", "Basic " + new String(Base64.encodeBase64(new String(account.getUsername()+":"+account.getPassword()).getBytes())));
 
-        HttpResponse response = httpClient.execute(conn);
+        HttpResponse response = executeThenCheckIfInterrupted(conn);
 
         switch (response.getStatusLine().getStatusCode()) {
         // For some bizarre reason, the server sometimes returns a correct result but with a 500 result code?!?! 
@@ -158,7 +160,7 @@ public class InternodeFetcher implements ProviderFetcher {
     }
 
 
-    private void updateServiceDetails(Service service) throws IOException, ParseException, IllegalStateException, ParserConfigurationException, SAXException {
+    private void updateServiceDetails(Service service) throws IOException, ParseException, IllegalStateException, ParserConfigurationException, SAXException, InterruptedException {
         Element result = XMLTools.getAPINode(request(getServiceURL(service), service.getAccount()));
         Element e = XMLTools.getNode(result, "service");
         
@@ -197,7 +199,7 @@ public class InternodeFetcher implements ProviderFetcher {
 
 
 
-    private void updateUsage(Service s) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException {
+    private void updateUsage(Service s) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, InterruptedException {
         Element result = XMLTools.getAPINode(request(getUsageURL(s), s.getAccount()));
 
         Element node = XMLTools.getNode(result, "traffic");
@@ -221,7 +223,7 @@ public class InternodeFetcher implements ProviderFetcher {
     }
 
 
-    private void updateHistory(Service service) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, ParseException {
+    private void updateHistory(Service service) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, ParseException, InterruptedException {
         Element result = XMLTools.getAPINode(request(getHistoryURL(service), service.getAccount()));
 
         Element e = XMLTools.getNode(result, "usagelist");
@@ -296,4 +298,14 @@ public class InternodeFetcher implements ProviderFetcher {
         }
     }
 
+
+
+
+    private HttpResponse executeThenCheckIfInterrupted(HttpRequestBase m) throws InterruptedException, ClientProtocolException, IOException {
+        HttpResponse resp = httpClient.execute(m);
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException();
+        }
+        return resp;
+    }
 }

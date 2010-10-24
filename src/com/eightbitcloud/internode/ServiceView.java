@@ -29,7 +29,7 @@ public class ServiceView extends FrameLayout {
 
     private Service service;
     private ListView metricGroupView;
-    private BaseAdapter listAdapter;
+    private MetricGroupListAdapter listAdapter;
     LayoutInflater inflater;
     private MetricGroup selectedMetricGroup;
     
@@ -39,10 +39,8 @@ public class ServiceView extends FrameLayout {
     public ServiceView(Context context, AttributeSet attrs, final Typeface font) {
         super(context, attrs);
         
-        inflater = LayoutInflater.from(context);
-
         LayoutInflater layoutInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View view = layoutInflater.inflate(R.layout.quota, this);
+        layoutInflater.inflate(R.layout.quota, this);
 
         ((TextView) findViewById(R.id.serviceid)).setTypeface(font);
         ((TextView) findViewById(R.id.planlabel)).setTypeface(font);
@@ -58,60 +56,7 @@ public class ServiceView extends FrameLayout {
 
         
         metricGroupView = (ListView) findViewById(R.id.metricgrouplist);
-        listAdapter = new BaseAdapter() {
-
-            public int getCount() {
-                return service == null ? 0 : service.getMetricGroupCount();
-            }
-
-            public MetricGroup getItem(int position) {
-                List<MetricGroup> groups = service.getAllMetricGroups();
-                return groups.get(position);
-            }
-
-            public long getItemId(int position) {
-                return position;
-            }
-
-            public View getView(int position, View convertView, ViewGroup parent) {
-                MetricGroup item = getItem(position);
-                ViewHolder holder;
-                
-                if (convertView == null || ((ViewHolder) convertView.getTag()).style != item.getStyle()) {
-                    holder = new ViewHolder();
-                    holder.style = item.getStyle();
-                    convertView = inflater.inflate(holder.style.getLayoutId(), null);
-                    holder.name = (TextView) convertView.findViewById(R.id.metricgrouplabel);
-                    holder.name.setTypeface(font);
-                    convertView.setTag(holder);
-
-                    convertView.setLayoutParams(new ListView.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-
-                } else {
-                    holder = (ViewHolder) convertView.getTag();
-                }
-                holder.name.setText(item.getName() + ':');
-                
-                switch (item.getStyle()) {
-                case SIMPLE:
-                    if (holder.value == null) {
-                        holder.value = (TextView) convertView.findViewById(R.id.metricgroupsimplevalue);
-                    }
-                    holder.value.setText(item.getValue().toString());
-                    break;
-                default:
-                    if (holder.graph == null) {
-                        holder.graph = (QuotaBarGraph) convertView.findViewById(R.id.metricgroupgraph);
-                        holder.graph.setGraphColors(service.getAccount().getProvider().getGraphColors());
-                    }
-                    holder.graph.setUsage(item.getComponents(), item.getAllocation());
-                    holder.graph.setTime(service.getPlan() == null ? 0.0f : (float) service.getPlan().getPercentgeThroughMonth(System.currentTimeMillis()));
-                    break;
-                }
-                return convertView;
-            }
-            
-        };
+        listAdapter = new MetricGroupListAdapter(context, service, font);
         metricGroupView.setAdapter(listAdapter);
         metricGroupView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         metricGroupView.setOnItemClickListener(new OnItemClickListener() {
@@ -125,6 +70,7 @@ public class ServiceView extends FrameLayout {
 
     public void setService(Service service) {
         this.service = service;
+        listAdapter.setService(service);
         
         Provider prov = service.getAccount().getProvider();
         int resid = getResources().getIdentifier(prov.getBackgroundResource(), "drawable", this.getClass().getPackage().getName());

@@ -6,15 +6,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.IBinder;
 import android.util.Log;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -23,10 +20,13 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.WindowManager;
-import android.widget.ArrayAdapter;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.FrameLayout.LayoutParams;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.admob.android.ads.AdManager;
@@ -53,6 +53,12 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
     // LocalService test stuff
     private DataFetcher dataFetcher;
+    
+    private ListView landscroller;
+
+    private LayoutInflater inflater;
+    
+    
 //    private boolean mIsBound;
 
 //    private ServiceConnection mConnection = new ServiceConnection() {
@@ -90,14 +96,67 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        inflater = LayoutInflater.from(this);
 
         setContentView(R.layout.main);
         if (isDisplayPortrait()) {
             scroller = ((PagingScrollView)findViewById(R.id.scrollView));
         } else {
-            ListView landscroller = (ListView) findViewById(R.id.landscroller);
+            landscroller = (ListView) findViewById(R.id.landscroller);
             
-            landscroller.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, new String[] {"One", "Two", "Three"}));
+            landscroller.setAdapter(new BaseAdapter() {
+                public int getCount() {
+                    return dataFetcher == null ? 0 : dataFetcher.getAllServices().size();
+                }
+
+                public Service getItem(int position) {
+                    return dataFetcher.getAllServices().get(position);
+                }
+
+                public long getItemId(int position) {
+                    return position;
+                }
+
+                public View getView(int position, View convertView, ViewGroup parent) {
+                    Service item = getItem(position);
+                    LandViewHolder holder;
+                    
+                    if (convertView == null) {
+                        convertView = inflater.inflate(R.layout.quotalandline, null);
+                        
+                        LinearLayout list = (LinearLayout) convertView.findViewById(R.id.innerlist);
+                        holder = new LandViewHolder(
+                                (TextView) convertView.findViewById(R.id.provider),
+                                (TextView) convertView.findViewById(R.id.accountname),
+                                (TextView) convertView.findViewById(R.id.serviceid),
+                                list, 
+                                new MetricGroupListAdapter(NodeUsage.this, item, internodeFont)
+                        );
+                        holder.accountType.setTypeface(internodeFont);
+                        convertView.setTag(holder);
+
+                        convertView.setLayoutParams(new ListView.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
+                    } else {
+                        holder = (LandViewHolder) convertView.getTag();
+                    }
+                    holder.accountType.setText(item.getAccount().getProvider().getName());
+                    holder.name.setText(item.getAccount().getUsername());
+                    holder.serviceID.setText(item.getIdentifier());
+                    
+
+                    holder.adapter.setService(item);
+                    
+                    // Cheat by using the list adapter to create views that we add directly to a linear layout
+                    holder.innerlist.removeAllViews();
+                    for (int i = 0; i < holder.adapter.getCount(); i++) {
+                        View v = holder.adapter.getView(i, null, null);
+                        holder.innerlist.addView(v);
+                    }
+                    
+                    return convertView;
+                }
+                
+            });
 
         }
 
@@ -192,6 +251,12 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         dataFetcher.registerCallback(this);
     }
     
+
+    private void updateLandscapeView() {
+        if (landscroller != null) 
+            ((BaseAdapter)landscroller.getAdapter()).notifyDataSetChanged();
+    }
+    
     
     /**
      * This is used to keep the dataFetcher around when rotation is performed, so that we don't
@@ -254,8 +319,8 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     public void onStart() {
         super.onStart();
-
-        // If we don't deregister the callbacklistener here, it will leak...
+        
+                // If we don't deregister the callbacklistener here, it will leak...
         if (isDisplayPortrait()) {
             updatePortraitAccountsView();
         }
@@ -341,6 +406,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         Log.d(TAG, "Finished fiddling with accounts. Request Code is " + requestCode +", result is " + resultCode);
+        dataFetcher.refreshFromPreferences();
     }
 
     
@@ -351,6 +417,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             //                   the XML
             case R.id.settingsMenuItem:
                 Intent intent = new Intent(this, AccountListActivity.class).setAction(Intent.ACTION_VIEW);
+                dataFetcher.cancelRunningFetches();
                 startActivityForResult(intent, 0);
                 return true;
             case R.id.refreshMenuItem:
@@ -405,12 +472,15 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     public void errorUpdatingAccounts(Account account, Exception ex) {
         Log.e(TAG, "Account " + account + " got error while updating services", ex);
         reportFatalException(ex);
+        updateLandscapeView();
     }
 
     public void serviceLoadStarted(Service service) {
         Log.i(TAG, "Service " + service + " beginning update");
         if (isDisplayPortrait()) {
             getViewForService(service).setLoading(true);
+        } else {
+            updateLandscapeView();
         }
         
     }
@@ -421,6 +491,8 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             ServiceView sv = getViewForService(service); 
             sv.setService(service);
             sv.setLoading(false);
+        } else {
+            updateLandscapeView();
         }
     }
 
@@ -430,6 +502,8 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             ServiceView sv = getViewForService(service); 
             sv.setService(service);
             sv.setLoading(false);
+        } else {
+            updateLandscapeView();
         }
         reportFatalException(ex);
     }
@@ -437,3 +511,22 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
 
 }
+
+
+
+class LandViewHolder {
+    TextView accountType;
+    TextView name;
+    TextView serviceID;
+    LinearLayout innerlist;
+    MetricGroupListAdapter adapter;
+    
+    public LandViewHolder(TextView accountType, TextView name, TextView serviceID, LinearLayout listView, MetricGroupListAdapter metricGroupListAdapter) {
+        this.accountType = accountType;
+        this.name = name;
+        this.serviceID = serviceID;
+        this.innerlist = listView;
+        this.adapter = metricGroupListAdapter;
+    }
+}
+

@@ -2,6 +2,10 @@ package com.eightbitcloud.internode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import android.app.Application;
 import android.content.Context;
@@ -32,7 +36,10 @@ public class DataFetcher  {
     List<Account> accounts = new ArrayList<Account>();
     Handler handler = new Handler();
     SharedPreferences prefs;
-    private List<Thread> runningThreads = new ArrayList<Thread>();
+    private List<Service> allServices;
+
+    ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 3, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    
 //    
 //    /**
 //     * Class for clients to access. Because we know this service always runs in
@@ -57,14 +64,13 @@ public class DataFetcher  {
         prefs = context.getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
         prefs.registerOnSharedPreferenceChangeListener(new OnSharedPreferenceChangeListener() {
             public void onSharedPreferenceChanged(SharedPreferences arg0, String arg1) {
-                PreferencesSerialiser.deserialise(prefs, accounts);
+                Log.i(NodeUsage.TAG, "Preferences Changed!!!!!.... Updating accounts");
+                refreshFromPreferences();
                 // TODO any need to take action? Possibly cancel tasks on accounts that no longer exist
             }
         });
-        PreferencesSerialiser.deserialise(prefs, accounts);
-//        showNotification();
-        Log.i(NodeUsage.TAG, "Created Service.... Updating accounts");
-        updateAccounts();
+        refreshFromPreferences();
+        
     }
 
 //    @Override
@@ -74,18 +80,38 @@ public class DataFetcher  {
 //        // return START_STICKY;
 //        
 //    }
+    
+    public void refreshFromPreferences() {
+        allServices = null;
+        PreferencesSerialiser.deserialise(prefs, accounts);
+        updateAccounts();
+        
+    }
+    
+
+    
+    
+    public List<Service> getAllServices() {
+        if (allServices == null) {
+            allServices = new ArrayList<Service>();
+            for (Account account: accounts) {
+                allServices.addAll(account.getAllServices());
+            }
+        }
+        return allServices;
+    }
 
     
     private void startFetch(Runnable r) {
-        Thread t = new Thread(r);
-        runningThreads.add(t);
-        t.start();
+        threadRunner.execute(new FutureTask<Void>(r, null));
     }
     
     public void cancelRunningFetches() {
-        for (Thread t: runningThreads) {
-            t.interrupt();
+        for (Runnable r: threadRunner.getQueue()) {
+            FutureTask<Void> ft = (FutureTask<Void>) r;
+            ft.cancel(true);
         }
+        threadRunner.purge();
     }
     
     
@@ -176,6 +202,9 @@ public class DataFetcher  {
                         after();
                     }
                 });
+            } catch (final InterruptedException ex) {
+                // Thats okay.  Its fine even!!!
+                // TODO does this need to notify that it was cancelled, therefore turning off downloading notifications and the like?
             } catch (final Exception ex) {
                 error(ex);
             }
@@ -209,6 +238,7 @@ public class DataFetcher  {
 
         @Override
         public void after() {
+            allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.accountLoadCompletedSuccessfully(target);
             }
@@ -220,6 +250,7 @@ public class DataFetcher  {
 
         @Override
         public void error(Exception ex) {
+            allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.errorUpdatingAccounts(target, ex);
             }
@@ -248,6 +279,7 @@ public class DataFetcher  {
 
         @Override
         public void after() {
+            allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.serviceUpdatedCompletedSuccessfully(target);
             }
@@ -255,6 +287,7 @@ public class DataFetcher  {
 
         @Override
         public void error(Exception ex) {
+            allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.errorUpdatingService(target, ex);
             }

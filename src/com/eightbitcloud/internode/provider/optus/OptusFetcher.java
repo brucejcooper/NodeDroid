@@ -19,10 +19,12 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
+import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
@@ -47,13 +49,14 @@ import com.eightbitcloud.internode.provider.WrongPasswordException;
 import com.eightbitcloud.internode.util.DateTools;
 
 public class OptusFetcher implements ProviderFetcher {
-    public static final String CAP_GROUP = "CAP";
-    public static final String FREE_DATA_GROUP = "FREE DATA";
-    public static final String DATA_PACK_GROUP = "DATA";
+    public static final String CAP_GROUP = "Cap";
+    public static final String FREE_DATA_GROUP = "Free Data";
+    public static final String FREE_CALLS_GROUP = "Free Calls";
+    public static final String DATA_PACK_GROUP = "Data";
     private static final String USAGE_URL = "UsageURL";
     private static final String SMAGENTKEY = "<input type=hidden name=smagentname value=";
     private static final BigDecimal GST_MULTIPLIER = new BigDecimal("1.1");
-    private static final String EX_CAP = "OTHER";
+    private static final String EX_CAP = "Other";
     private HttpClient httpClient;
     public DateFormat rolloverFormatter = new SimpleDateFormat("dd/MM/yyyy");
 
@@ -70,11 +73,19 @@ public class OptusFetcher implements ProviderFetcher {
         melbourneTZ = TimeZone.getTimeZone("GMT+1000");
         rolloverFormatter.setTimeZone(melbourneTZ);
     }
+    
+    private HttpResponse executeThenCheckIfInterrupted(HttpRequestBase m) throws InterruptedException, ClientProtocolException, IOException {
+        HttpResponse resp = httpClient.execute(m);
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedException();
+        }
+        return resp;
+    }
 
-    public void fetchServices(Account account) throws AccountUpdateException {
+    public void fetchServices(Account account) throws AccountUpdateException, InterruptedException {
         try {
             HttpGet loginPage = new HttpGet("http://www.optus.com.au/login");
-            HttpResponse resp = httpClient.execute(loginPage);
+            HttpResponse resp = executeThenCheckIfInterrupted(loginPage);
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
                 throw new IOException("Expected OK Response");
             String body = EntityUtils.toString(resp.getEntity());
@@ -84,6 +95,7 @@ public class OptusFetcher implements ProviderFetcher {
             }
             int closePos = body.indexOf('"', pos+SMAGENTKEY.length()+1);
             String key = body.substring(pos + SMAGENTKEY.length() + 1, closePos);
+            
             
             //<input type=hidden name=smagentname value="Hp78kFUMHCYddNe1TJmGKxT57SuEDCMoLqqOzRBGImr20+txe1ylGUCySYZ/CvHj">
     
@@ -101,8 +113,8 @@ public class OptusFetcher implements ProviderFetcher {
             formparams.add(new BasicNameValuePair("PASSWORD", account.getPassword()));
     
             loginPost.setEntity(new UrlEncodedFormEntity(formparams, "UTF-8"));
-            resp = httpClient.execute(loginPost);
-            
+            resp = executeThenCheckIfInterrupted(loginPost);
+        
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
                 throw new IOException("Expected OK from login: " + resp.getStatusLine());
             
@@ -226,11 +238,11 @@ public class OptusFetcher implements ProviderFetcher {
 
     }
 
-    public void updateService(Service service) throws AccountUpdateException {
+    public void updateService(Service service) throws AccountUpdateException, InterruptedException {
         String usageDoc = null;
         try {
             HttpGet intermediatePage = new HttpGet((String)service.getProperty(USAGE_URL));
-            HttpResponse resp = httpClient.execute(intermediatePage);
+            HttpResponse resp = executeThenCheckIfInterrupted(intermediatePage);
             
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
                 throw new IOException("Expected OK Response");
@@ -244,7 +256,7 @@ public class OptusFetcher implements ProviderFetcher {
             String realURL = prependHost(urlMatcher.group(1));
             
             HttpGet usagePage = new HttpGet(realURL);
-            resp = httpClient.execute(usagePage);
+            resp = executeThenCheckIfInterrupted(usagePage);
             
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
                 throw new IOException("Expected OK Response");
@@ -352,6 +364,7 @@ public class OptusFetcher implements ProviderFetcher {
             while (summaryRowMatcher.find()) {
                 String metric = summaryRowMatcher.group(1);
                 String amt = summaryRowMatcher.group(2);
+                Value parsedAmount = parseValue(amt);
                 Value cost = parseValue(summaryRowMatcher.group(3));
                 if (cost.getUnit() != Unit.CENT) {
                     throw new IOException("cost isn't a cost");
@@ -374,7 +387,7 @@ public class OptusFetcher implements ProviderFetcher {
                 if (mg.getAllocation().getUnit() == Unit.CENT) {
                     comp.setAmount(cost);
                 } else {
-                    comp.setAmount(parseValue(amt));
+                    comp.setAmount(parsedAmount);
                 }
                 
                 
@@ -413,9 +426,11 @@ public class OptusFetcher implements ProviderFetcher {
                     Date time = eventTimeFormatter.parse(date + ' ' + transactionPatternMatcher.group(1));
                     String destination = transactionPatternMatcher.group(2);
                     String quantity = transactionPatternMatcher.group(4);
-                    String type = mapTXToValueName(transactionPatternMatcher.group(3), quantity);
+                    String originalType = transactionPatternMatcher.group(3);
+                    String type = mapTXToValueName(originalType, quantity);
                     Value cost = parseValue(transactionPatternMatcher.group(5));
-                    
+
+
                     
                     MetricGroup group = service.getMetricGroup(inferGroupForMetric(type));
                     MeasuredValue value = group.getComponent(type);
@@ -426,6 +441,7 @@ public class OptusFetcher implements ProviderFetcher {
                         group.addComponent(value);
                         
                     }
+                    Log.d(NodeUsage.TAG, "REad " + time + "/" + destination + "/" + quantity + "/" + originalType + "(" +type + ")/"+ cost + ". Value is " + value.getName());
 
                     Matcher timeMatcher = timePattern.matcher(quantity);
                     Value quantityValue;
@@ -482,10 +498,10 @@ public class OptusFetcher implements ProviderFetcher {
             txToComponents = new HashMap<String,String>();
             txToComponents.put("Mobile", "Mobile Call Charges");
             txToComponents.put("Optus SMS", "SMS - Text Messaging");
-            txToComponents.put("DIV-VoiceMail", "Voicemail");
+            txToComponents.put("DIV-VoiceMail", "Other");
             txToComponents.put("Freephone", "Mobile Call Charges");
             txToComponents.put("Handset Feature", "Mobile Call Charges");
-            txToComponents.put("VoiceMail", "Voicemail");
+            txToComponents.put("Voicemail", "Other");
             
             txToComponents.put("Internet", "Data - Mobile Internet");
             txToComponents.put("Social Internet", "Social Internet");
@@ -498,6 +514,7 @@ public class OptusFetcher implements ProviderFetcher {
             if (timePattern.matcher(quantity).matches()) {
                 result = "Mobile Call Charges";
             } else {
+                Log.i(NodeUsage.TAG, "Can not find type " + type + " in map, and it isn't a time... so its something else.");
                 result = "Other";
             }
         }
@@ -512,6 +529,8 @@ public class OptusFetcher implements ProviderFetcher {
             return DATA_PACK_GROUP;
         } else if (metric.equalsIgnoreCase("Social Internet")) {
             return FREE_DATA_GROUP;
+//        } else if (metric.equalsIgnoreCase("Other")) {
+//            return FREE_CALLS_GROUP;
 //        } else if (metric.equalsIgnoreCase("SMS-Text Messaging Int'l")) {
 //            return EX_CAP;
         } else {

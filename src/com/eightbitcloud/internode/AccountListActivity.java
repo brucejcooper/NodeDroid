@@ -3,6 +3,7 @@ package com.eightbitcloud.internode;
 import java.util.ArrayList;
 import java.util.List;
 
+import android.app.AlertDialog;
 import android.app.Application;
 import android.app.Dialog;
 import android.app.ListActivity;
@@ -18,6 +19,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -26,6 +28,7 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.TableLayout.LayoutParams;
 
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.ProviderStore;
@@ -93,8 +96,7 @@ public class AccountListActivity extends ListActivity {
         
         findViewById(R.id.addaccountbutton).setOnClickListener(new OnClickListener() {
             public void onClick(View v) {
-                editedRow = -1;
-                showDialog(USER_PASS_ID);
+                createNewAccount();
             }
         });
         
@@ -117,9 +119,20 @@ public class AccountListActivity extends ListActivity {
         Log.d(NodeUsage.TAG, "Starting accountlist, accts is " + accounts + ", prefs = " + getAccountPreferences().getAll());
         ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
         if (accounts.isEmpty()) {
-            editedRow = -1;
-            showDialog(USER_PASS_ID);
+            createNewAccount();
         }
+    }
+    
+    private void createNewAccount() {
+        editedRow = -1;
+        showDialog(USER_PASS_ID);
+        
+    }
+    
+    public void deleteAccount(int index) {
+        accounts.remove(index);
+        ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
+
     }
     
     @Override
@@ -132,17 +145,17 @@ public class AccountListActivity extends ListActivity {
     
     @Override
     public void onPrepareDialog(int id, Dialog dialog) {
+        Button deleteButton = (Button) dialog.findViewById(R.id.userdialog_delete);
         if (editedRow >= 0) {
-
-            
             Account account = (Account) getListAdapter().getItem(editedRow);
             EditText usernameEditor= (EditText) dialog.findViewById(R.id.username_editor);
             EditText passwordEditor= (EditText) dialog.findViewById(R.id.password_editor);
             usernameEditor.setText(account.getUsername());
             passwordEditor.setText(account.getPassword());
             
-            
-
+            deleteButton.setEnabled(true);
+        } else {
+            deleteButton.setEnabled(false);
         }
         super.onPrepareDialog(id, dialog);
     }
@@ -158,6 +171,7 @@ public class AccountListActivity extends ListActivity {
 
             dialog.setContentView(R.layout.userpass_dialog);
             dialog.setTitle(R.string.userpasstitle);
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 
             final Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
             ArrayAdapter adapter = ArrayAdapter.createFromResource(this, R.array.providers, android.R.layout.simple_spinner_item);
@@ -192,6 +206,32 @@ public class AccountListActivity extends ListActivity {
                     dialog.cancel();
                 }
             });
+
+            
+
+            
+            Button deleteButton = (Button) dialog.findViewById(R.id.userdialog_delete);
+            deleteButton.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    AlertDialog.Builder builder = new AlertDialog.Builder(AccountListActivity.this);
+                    builder.setMessage("Are you sure you want to delete this account?")
+                           .setCancelable(true)
+                           .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                               public void onClick(DialogInterface confirmDialog, int id) {
+                                   confirmDialog.cancel();
+                                   dialog.cancel();
+                                   deleteAccount(editedRow);
+                               }
+                           }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                               public void onClick(DialogInterface confirmDialog, int id) {
+                                   confirmDialog.cancel();
+                              }
+                          });
+                    AlertDialog alert = builder.create();
+                    alert.show();
+                }
+            });
+
             break;
         default:
             dialog = null;
@@ -249,7 +289,11 @@ public class AccountListActivity extends ListActivity {
             progressDialog.dismiss();
             if (result) {
                 // Add the account...
-                accounts.add(account);
+                if (editedRow != -1) {
+                    accounts.set(editedRow, account);
+                } else {
+                    accounts.add(account);
+                }
                 ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
 
 

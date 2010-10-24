@@ -5,7 +5,7 @@ import com.eightbitcloud.internode.data.Service;
 
 public interface ProviderFetcher {
 
-    void fetchServices(Account account) throws AccountUpdateException;
+    void fetchServices(Account account) throws AccountUpdateException, InterruptedException;
     void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException;
-    void updateService(Service service) throws AccountUpdateException;
+    void updateService(Service service) throws AccountUpdateException, InterruptedException;
 }
