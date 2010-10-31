@@ -1,18 +1,28 @@
 package com.eightbitcloud.internode.data;
 
-import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.eightbitcloud.internode.PreferencesSerialiser;
 import com.eightbitcloud.internode.UsageGraphType;
 
-public class MetricGroup implements NamedThing, Serializable {
-    /**
-     * 
-     */
-    private static final long serialVersionUID = -8723220122265773158L;
+public class MetricGroup implements NamedThing, PreferencesSerialisable {
+    
+    private static final String GRAPH_TYPES = "graphTypes";
+    private static final String UNITS2 = "units";
+    private static final String EXCESS_RESTRICT_ACCESS = "excessRestrictAccess";
+    private static final String EXCESS_SHAPED = "excessShaped";
+    private static final String EXCESS_CHARGED = "excessCharged";
+    private static final String COMPONENTS2 = "components";
+    private static final String ALLOCATION2 = "allocation";
+    private static final String STYLE2 = "style";
+    private static final String NAME2 = "name";
     
     private Service service;
     private String name;
@@ -31,6 +41,18 @@ public class MetricGroup implements NamedThing, Serializable {
         this.name = name;
         this.allocation = new Value(0, units);
         this.style = style;
+    }
+    
+    public MetricGroup() {
+        // Used by Preference serialisation
+    }
+    
+    /**
+     * This should only be used by the preference serialisation stuff
+     * @param service
+     */
+    public void __setService(Service service) {
+        this.service = service;
     }
     
     public String getName() {
@@ -114,6 +136,38 @@ public class MetricGroup implements NamedThing, Serializable {
     @Override
     public String toString() {
         return name;
+    }
+
+    public void writeTo(JSONObject obj) throws JSONException {
+         obj.put(NAME2, name);
+         obj.put(STYLE2, style.toString());
+         obj.put(ALLOCATION2, allocation.getPrefValue());
+         obj.put(COMPONENTS2, PreferencesSerialiser.createJSONRepresentation(components));
+         obj.put(EXCESS_CHARGED, excessCharged);
+         obj.put(EXCESS_SHAPED, excessShaped);
+         obj.put(EXCESS_RESTRICT_ACCESS, excessRestrictAccess);
+         obj.put(UNITS2, units.toString());
+         
+         obj.put(GRAPH_TYPES, PreferencesSerialiser.createJSONRepresentationForStrings(graphTypes));
+    }
+
+    public void readFrom(JSONObject obj) throws JSONException {
+        name = obj.getString(NAME2);
+        style = CounterStyle.valueOf(obj.getString(STYLE2));
+        allocation = new Value(obj.getString(ALLOCATION2));
+        PreferencesSerialiser.populateJSONList(this.components = new NameMappedList<MeasuredValue>(), MeasuredValue.class, obj.getJSONArray(COMPONENTS2));
+        excessCharged = obj.getBoolean(EXCESS_CHARGED);
+        excessShaped = obj.getBoolean(EXCESS_SHAPED);
+        excessRestrictAccess = obj.getBoolean(EXCESS_RESTRICT_ACCESS);
+        units = Unit.valueOf(obj.getString(UNITS2));
+
+
+        List<String> vals = PreferencesSerialiser.createStringArray(obj.getJSONArray(GRAPH_TYPES));
+        graphTypes = new ArrayList<UsageGraphType>(vals.size());
+        for (String s: vals) {
+            graphTypes.add(UsageGraphType.valueOf(s));
+        }
+        
     }
     
 

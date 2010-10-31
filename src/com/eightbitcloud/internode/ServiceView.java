@@ -8,10 +8,8 @@ import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.ListView;
 import android.widget.ProgressBar;
@@ -112,8 +110,8 @@ public class ServiceView extends FrameLayout {
 
     public void updateGraph(MetricGroup mg) {
         if (mg != null) {
-            Plan plan = service.getPlan();
-            Value quota = mg.getAllocation();
+//            Plan plan = service.getPlan();
+//            Value quota = mg.getAllocation();
             graphView.setMetricGroup(mg);
         }     
     }

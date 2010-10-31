@@ -12,7 +12,6 @@ import java.util.TreeMap;
 
 import android.content.Context;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.Gravity;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -87,7 +86,7 @@ public class UsageGraphView extends LinearLayout {
         if (group.getGraphTypes().size() > 1) {
             for (UsageGraphType type: group.getGraphTypes()) {
                 RadioButton b = new RadioButton(getContext());
-                b.setText(type.toString());
+                b.setText(type.getDisplayString());
                 b.setBackgroundResource(R.drawable.btn_radio);
                 b.setButtonDrawable(R.drawable.btn_radio); // Naughty, but it does stop the button from drawing.
                 b.setPadding(5,0,5,0);

@@ -37,8 +37,10 @@ public class DataFetcher  {
     Handler handler = new Handler();
     SharedPreferences prefs;
     private List<Service> allServices;
+    
+    BackgroundSaver backgroundSaver;
 
-    ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 3, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 5, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
     
     
     boolean ignoringPreferenceUpdates = false;
@@ -75,6 +77,8 @@ public class DataFetcher  {
             }
         });
         refreshFromPreferences();
+        backgroundSaver = new BackgroundSaver();
+        backgroundSaver.start();
         
     }
 
@@ -114,6 +118,7 @@ public class DataFetcher  {
     
     public void cancelRunningFetches() {
         for (Runnable r: threadRunner.getQueue()) {
+            @SuppressWarnings("unchecked")
             FutureTask<Void> ft = (FutureTask<Void>) r;
             ft.cancel(true);
         }
@@ -122,25 +127,19 @@ public class DataFetcher  {
     
     
     public void shutdown() {
-        this.onDestroy();
-    }
-    
-    public void saveState() {
-        ignoringPreferenceUpdates = true;
-        try {
-            Log.i(NodeUsage.TAG, "Saving services with " + getAllServices());
-            PreferencesSerialiser.serialise(accounts, prefs);
-        } finally {
-            ignoringPreferenceUpdates = false;
-        }
-    }
-
-//    @Override
-    public void onDestroy() {
-//      sp.edit().putString("graphType", graphType.toString()).commit();
         Log.i(NodeUsage.TAG, "Shutting down Background Fetch Service");
         cancelRunningFetches();
-        saveState();
+
+        
+        backgroundSaver.shutdown();
+        try {
+            // Wait for it to complete, otherwise we may do two saves on top of each other...
+            backgroundSaver.join();
+        } catch (InterruptedException e) {
+        }
+//      sp.edit().putString("graphType", graphType.toString()).commit();
+
+
         
         // Cancel the persistent notification.
 //        mNM.cancel(R.string.local_service_started);
@@ -148,6 +147,18 @@ public class DataFetcher  {
         // Tell the user we stopped.
 //        Toast.makeText(this, R.string.local_service_stopped, Toast.LENGTH_SHORT).show();
     }
+    
+    public synchronized void saveState() {
+        ignoringPreferenceUpdates = true;
+        try {
+            Log.i(NodeUsage.TAG, "Saving preferences");
+            PreferencesSerialiser.serialise(accounts, prefs);
+        } finally {
+            ignoringPreferenceUpdates = false;
+        }
+    }
+
+    
 //
 //    @Override
 //    public IBinder onBind(Intent intent) {
@@ -187,6 +198,7 @@ public class DataFetcher  {
     }
     
     public void updateAccounts() {
+        
         Log.i(NodeUsage.TAG, "Updating Services");
         cancelRunningFetches();
         for (Account account: accounts) {
@@ -213,6 +225,7 @@ public class DataFetcher  {
                     }
                 });
                 execute();
+                backgroundSaver.scheduleSave();
                 handler.post(new Runnable() {
                     public void run() {
                         after();
@@ -262,7 +275,6 @@ public class DataFetcher  {
             for (AccountUpdateListener l : listeners) {
                 l.fetchedServiceNamesForAccount(target);
             }
-            saveState();
             
             for (Service service : target.getAllServices()) {
                 startFetch(new ServiceUpdaterTask(service, fetcher));
@@ -304,7 +316,6 @@ public class DataFetcher  {
             for (AccountUpdateListener l : listeners) {
                 l.serviceUpdated(target);
             }
-            saveState();
         }
 
         @Override
@@ -313,6 +324,49 @@ public class DataFetcher  {
             for (AccountUpdateListener l : listeners) {
                 l.errorUpdatingService(target, ex);
             }
+        }
+    }
+    
+    
+    public class BackgroundSaver extends Thread {
+        boolean running = true;
+        long scheduledSaveTime = -1;
+        
+        public synchronized void scheduleSave() {
+//            Log.i(NodeUsage.TAG, "Scheduling Saving preferences");
+            // Give it 5 seconds... It seems like a long time, but remember
+            // that saving will happen anyway.
+            this.scheduledSaveTime = System.currentTimeMillis() + 5000;
+            notify();
+        }
+        
+        public synchronized void shutdown() {
+            this.running = false;
+            notify();
+        }
+
+        @Override
+        public synchronized void run() {
+            while (running) {
+                long now = System.currentTimeMillis();
+                
+                if (scheduledSaveTime >= 0 && scheduledSaveTime <= now) {
+                    saveState();
+                    scheduledSaveTime = -1;
+                }
+    
+                try {
+                    if (scheduledSaveTime >= 0) {
+                        backgroundSaver.wait(scheduledSaveTime - now);
+                    } else {
+                        backgroundSaver.wait(); // wait until we're interrupted
+                    }
+                } catch (InterruptedException ex) {
+                }
+            }
+            // One final save
+            saveState();
+            Log.i(NodeUsage.TAG, "Background state saver finished");
         }
     }
 }

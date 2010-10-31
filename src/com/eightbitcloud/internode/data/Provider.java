@@ -1,13 +1,15 @@
 package com.eightbitcloud.internode.data;
 
 import java.security.KeyStore;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.eightbitcloud.internode.GraphColors;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
 import com.eightbitcloud.internode.provider.internode.InternodeFetcher;
 import com.eightbitcloud.internode.provider.optus.OptusFetcher;
 
-public class Provider extends ThingWithProperties {
+public class Provider {
     private String name;
     private String url;
     private String textColour;
@@ -16,7 +18,19 @@ public class Provider extends ThingWithProperties {
     
     private GraphColors graphColors;
     private boolean beta;
-    
+    private Map<String, Object> properties;
+
+    public void setProperty(String key, Object value) {
+        if (properties == null) {
+            properties = new HashMap<String, Object>();
+        }
+        properties.put(key, value);
+    }
+
+    public Object getProperty(String key) {
+        return properties == null ? null : properties.get(key);
+    }
+
     
     public GraphColors getGraphColors() {
         return graphColors;

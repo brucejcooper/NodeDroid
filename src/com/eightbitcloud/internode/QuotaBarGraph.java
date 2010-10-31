@@ -2,11 +2,7 @@ package com.eightbitcloud.internode;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-
-import com.eightbitcloud.internode.data.MeasuredValue;
-import com.eightbitcloud.internode.data.Value;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -17,6 +13,9 @@ import android.graphics.RectF;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
+
+import com.eightbitcloud.internode.data.MeasuredValue;
+import com.eightbitcloud.internode.data.Value;
 
 public class QuotaBarGraph extends View {
 

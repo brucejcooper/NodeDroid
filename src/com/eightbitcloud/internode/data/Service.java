@@ -1,7 +1,11 @@
 package com.eightbitcloud.internode.data;
 
-import java.io.Serializable;
 import java.util.List;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import com.eightbitcloud.internode.PreferencesSerialiser;
 
 
 /**
@@ -16,13 +20,12 @@ import java.util.List;
  * @author bruce
  *
  */
-public class Service extends ThingWithProperties implements Serializable {
-    /**
-     * 
-     */
-    private static final long serialVersionUID = -1285272941226849491L;
+public class Service extends ThingWithProperties implements PreferencesSerialisable {
     
-    
+    private static final String MG = "mg";
+    private static final String PLAN2 = "plan";
+    private static final String IDACCT = "idacct";
+    private static final String IDPROV = "idprov";
     private transient Account account;
     private ServiceIdentifier identifier;
     private Plan plan;
@@ -103,5 +106,25 @@ public class Service extends ThingWithProperties implements Serializable {
         return true;
     }
     
+    @Override
+    public void writeTo(JSONObject obj) throws JSONException {
+        super.writeTo(obj);
+        obj.put(IDPROV, identifier.getProvider());
+        obj.put(IDACCT, identifier.getAccountNumber());
+        obj.put(PLAN2, plan == null ? null : PreferencesSerialiser.createJSONRepresentation(plan));
+        obj.put(MG, PreferencesSerialiser.createJSONRepresentation(metricGroups));
+    }
+
+    @Override
+    public void readFrom(JSONObject obj) throws JSONException {
+        super.readFrom(obj);
+        this.identifier = new ServiceIdentifier(obj.getString(IDPROV), obj.getString(IDACCT));
+        this.plan = new Plan();
+        this.plan.readFrom(obj.getJSONObject(PLAN2));
+        PreferencesSerialiser.populateJSONList(this.metricGroups = new NameMappedList<MetricGroup>(), MetricGroup.class, obj.getJSONArray(MG));
+        for (MetricGroup mg: this.metricGroups) {
+            mg.__setService(this);
+        }
+    }
 
 }

@@ -289,7 +289,7 @@ public class OptusFetcher implements ProviderFetcher {
             Matcher serviceNumberMatcher = serviceNumberPattern.matcher(usageDoc);
             if (!serviceNumberMatcher.find())
                 throw new IOException("Couldn't find service Number");
-            String serviceNumber = serviceNumberMatcher.group(1);
+//            String serviceNumber = serviceNumberMatcher.group(1);
             
 //            System.out.println("Service number is " + serviceNumber); // Kind of redundant
             

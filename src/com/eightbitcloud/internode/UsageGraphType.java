@@ -11,8 +11,7 @@ public enum UsageGraphType {
         this.displayName = displayName;
     }
     
-    @Override
-    public String toString() {
+    public String getDisplayString() {
         return displayName;
     }
 }

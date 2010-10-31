@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.Handler;
 import android.util.Log;
 import android.view.Display;
@@ -341,6 +342,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     }
     
     public void updatePortraitAccountsView() {
+
         scroller.removeAllPages();
         serviceViews.clear();
         if (dataFetcher.accounts.isEmpty()) {
@@ -453,6 +455,13 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     protected void onDestroy() {
         dataFetcher.deregisterCallback(this);
+        
+        if (isFinishing()) {
+            Log.i(TAG, "Shutting down datafetcher");
+            dataFetcher.shutdown();
+            dataFetcher = null;
+        }
+        
         super.onDestroy();
 //        doUnbindService();
     }

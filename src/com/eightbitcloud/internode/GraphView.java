@@ -24,6 +24,7 @@ public class GraphView extends View {
     private Value maxValue;
     
     Value thresholdValue;
+    @SuppressWarnings("unchecked")
     public GraphData<? extends Object,Value> data = new GraphData<Object,Value>(Collections.emptyList(), Collections.EMPTY_MAP, GraphStyle.BAR, null);
 
     private Paint mTextPaint;
@@ -225,8 +226,8 @@ public class GraphView extends View {
         int y1 = getPaddingTop();
         int x2 = getWidth()-getPaddingRight();
         int y2 = getHeight()-getPaddingBottom();
-        int mx = (x1+x2)/2;
-        int my = (y1+y2)/2;
+//        int mx = (x1+x2)/2;
+//        int my = (y1+y2)/2;
         int size = Math.min(x2-x1, y2-y1);
         
         RectF oval = new RectF(x1,y1, x1+size, x1+size);

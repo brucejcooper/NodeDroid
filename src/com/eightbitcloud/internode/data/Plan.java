@@ -1,17 +1,22 @@
 package com.eightbitcloud.internode.data;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 
-public class Plan extends ThingWithProperties implements Serializable {
-    /**
-     * 
-     */
-    private static final long serialVersionUID = 1070337460127518864L;
+import com.eightbitcloud.internode.PreferencesSerialiser;
+
+public class Plan extends ThingWithProperties implements PreferencesSerialisable {
+    private static final String EXTRAS2 = "extras";
+    private static final String INTERVAL2 = "interval";
+    private static final String COST2 = "cost";
+    private static final String ROLLOVER = "rollover";
+    private static final String DESCRIPTION2 = "description";
+    private static final String NAME2 = "name";
     private String description;
     private String name;
     private Date rolloverDate;
@@ -44,7 +49,7 @@ public class Plan extends ThingWithProperties implements Serializable {
     public Date getNextRollover() {
         return rolloverDate;
     }
-    
+
     public Date getPreviousRollover() {
         if (cachedPreviousRollover == null) {
             Date next = getNextRollover();
@@ -52,22 +57,20 @@ public class Plan extends ThingWithProperties implements Serializable {
                 Calendar cal = Calendar.getInstance();
                 cal.setTime(next);
                 cal.add(Calendar.MONTH, -1);
-                cachedPreviousRollover =  cal.getTime();
+                cachedPreviousRollover = cal.getTime();
             }
         }
         return cachedPreviousRollover;
     }
-    
+
     public long getBillingPeriodLength() {
         return getNextRollover().getTime() - getPreviousRollover().getTime();
     }
-    
+
     public double getPercentgeThroughMonth(long now) {
         long timeElapsed = now - getPreviousRollover().getTime();
         return (timeElapsed / (double) getBillingPeriodLength());
     }
-    
-
 
     public void setCost(Value cost) {
         assert cost.getUnit() == Unit.CENT;
@@ -81,11 +84,11 @@ public class Plan extends ThingWithProperties implements Serializable {
     public void setInterval(PlanInterval valueOf) {
         interval = valueOf;
     }
-    
+
     public PlanInterval getInterval() {
         return interval;
     }
-    
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -96,9 +99,31 @@ public class Plan extends ThingWithProperties implements Serializable {
     public void addPlanExtra(String extra) {
         extras.add(extra);
     }
-    
+
     public List<String> getPlanExtras() {
-        return extras ;
+        return extras;
+    }
+
+    @Override
+    public void writeTo(JSONObject obj) throws JSONException {
+        super.writeTo(obj);
+        obj.put(NAME2, name);
+        obj.put(DESCRIPTION2, description);
+        obj.put(ROLLOVER, rolloverDate.getTime());
+        obj.put(COST2, cost.getPrefValue());
+        obj.put(INTERVAL2, interval);
+        obj.put(EXTRAS2, PreferencesSerialiser.createJSONRepresentationForStrings(extras));
+    }
+
+    @Override
+    public void readFrom(JSONObject obj) throws JSONException {
+        super.readFrom(obj);
+        name = obj.getString(NAME2);
+        description = obj.has(DESCRIPTION2) ? obj.getString(DESCRIPTION2) : null;
+        rolloverDate = new Date(obj.getLong(ROLLOVER));
+        cost = new Value(obj.getString(COST2));
+        interval = obj.has(INTERVAL2) ? PlanInterval.valueOf(obj.getString(INTERVAL2)) : null;
+        extras = PreferencesSerialiser.createStringArray(obj.getJSONArray(EXTRAS2));
     }
 
 }

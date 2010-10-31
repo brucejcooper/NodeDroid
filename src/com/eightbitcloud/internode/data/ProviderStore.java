@@ -10,8 +10,6 @@ import java.util.Map;
 
 import com.eightbitcloud.internode.GraphColors;
 
-import android.graphics.Color;
-
 public class ProviderStore {
 
     private static ProviderStore store;
@@ -43,11 +41,6 @@ public class ProviderStore {
         optusProv.setBackgroundResource("optusheader"); //#ffd100
         addProvider(optusProv);
 
-    }
-    
-    private static Map<String,Integer> createSingleColorMap(int color) {
-        return Collections.singletonMap(null, color);
-        
     }
     
     public static ProviderStore getInstance() {

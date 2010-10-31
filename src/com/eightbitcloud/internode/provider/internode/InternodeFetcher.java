@@ -38,7 +38,6 @@ import android.util.Log;
 
 import com.eightbitcloud.internode.NodeUsage;
 import com.eightbitcloud.internode.ServerErrorException;
-import com.eightbitcloud.internode.ServiceType;
 import com.eightbitcloud.internode.UsageGraphType;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.CounterStyle;
@@ -134,13 +133,13 @@ public class InternodeFetcher implements ProviderFetcher {
     }
     
     private URL getServiceURL(Service service) throws MalformedURLException {
-        return new URL(service.getProperty(SERVICEURL_KEY).toString() + "/service");
+        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/service");
     }
     private URL getUsageURL(Service service) throws MalformedURLException  {
-        return new URL(service.getProperty(SERVICEURL_KEY).toString() + "/usage");
+        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/usage");
     }
     private URL getHistoryURL(Service service) throws MalformedURLException  {
-        return new URL(service.getProperty(SERVICEURL_KEY).toString() + "/history");
+        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/history");
     }
 
     
@@ -284,8 +283,8 @@ public class InternodeFetcher implements ProviderFetcher {
                     service.setMetricGroups(Collections.singletonList(mg));
                 }
                 
-                service.setProperty(SERVICETYPE_KEY, ServiceType.valueOf(serviceElement.getAttribute("type")));
-                service.setProperty(SERVICEURL_KEY, new URL(baseURL, serviceElement.getAttribute("href")));
+                service.setProperty(SERVICETYPE_KEY, serviceElement.getAttribute("type"));
+                service.setProperty(SERVICEURL_KEY, serviceElement.getAttribute("href"));
                 
             }
             

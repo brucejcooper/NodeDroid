@@ -2,6 +2,7 @@ package com.eightbitcloud.internode.data;
 
 import java.util.ArrayList;
 
+@SuppressWarnings("serial")
 public class NameMappedList<I  extends NamedThing> extends ArrayList<I>{
 
     public I getItemNamed(String name) {

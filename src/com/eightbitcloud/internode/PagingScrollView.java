@@ -22,7 +22,7 @@ public class PagingScrollView extends HorizontalScrollView {
 
     @Override
     public void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int specMode = MeasureSpec.getMode(widthMeasureSpec);
+//        int specMode = MeasureSpec.getMode(widthMeasureSpec);
         int specSize = MeasureSpec.getSize(widthMeasureSpec);
 
         for (int i = 0; i < contents.getChildCount(); i++) {
