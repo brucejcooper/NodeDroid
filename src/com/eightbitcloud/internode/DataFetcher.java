@@ -40,6 +40,9 @@ public class DataFetcher  {
 
     ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 3, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
     
+    
+    boolean ignoringPreferenceUpdates = false;
+    
 //    
 //    /**
 //     * Class for clients to access. Because we know this service always runs in
@@ -64,8 +67,10 @@ public class DataFetcher  {
         prefs = context.getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
         prefs.registerOnSharedPreferenceChangeListener(new OnSharedPreferenceChangeListener() {
             public void onSharedPreferenceChanged(SharedPreferences arg0, String arg1) {
-                Log.i(NodeUsage.TAG, "Preferences Changed!!!!!.... Updating accounts");
-                refreshFromPreferences();
+                if (!ignoringPreferenceUpdates) {
+                    Log.i(NodeUsage.TAG, "Preferences Changed!!!!!.... Updating accounts");
+                    refreshFromPreferences();
+                }
                 // TODO any need to take action? Possibly cancel tasks on accounts that no longer exist
             }
         });
@@ -84,6 +89,7 @@ public class DataFetcher  {
     public void refreshFromPreferences() {
         allServices = null;
         PreferencesSerialiser.deserialise(prefs, accounts);
+        Log.i(NodeUsage.TAG, "after deserialising, services are " + getAllServices());
         updateAccounts();
         
     }
@@ -118,13 +124,23 @@ public class DataFetcher  {
     public void shutdown() {
         this.onDestroy();
     }
+    
+    public void saveState() {
+        ignoringPreferenceUpdates = true;
+        try {
+            Log.i(NodeUsage.TAG, "Saving services with " + getAllServices());
+            PreferencesSerialiser.serialise(accounts, prefs);
+        } finally {
+            ignoringPreferenceUpdates = false;
+        }
+    }
 
 //    @Override
     public void onDestroy() {
 //      sp.edit().putString("graphType", graphType.toString()).commit();
         Log.i(NodeUsage.TAG, "Shutting down Background Fetch Service");
         cancelRunningFetches();
-        PreferencesSerialiser.serialise(accounts, prefs);
+        saveState();
         
         // Cancel the persistent notification.
 //        mNM.cancel(R.string.local_service_started);
@@ -206,7 +222,11 @@ public class DataFetcher  {
                 // Thats okay.  Its fine even!!!
                 // TODO does this need to notify that it was cancelled, therefore turning off downloading notifications and the like?
             } catch (final Exception ex) {
-                error(ex);
+                handler.post(new Runnable() {
+                    public void run() {
+                        error(ex);
+                    }
+                });
             }
         }
         
@@ -226,7 +246,7 @@ public class DataFetcher  {
         @Override
         public void before() {
             for (AccountUpdateListener l : listeners) {
-                l.accountLoadStarted(target);
+                l.startingServiceFetchForAccount(target);
             }
         }
 
@@ -240,8 +260,9 @@ public class DataFetcher  {
         public void after() {
             allServices = null;
             for (AccountUpdateListener l : listeners) {
-                l.accountLoadCompletedSuccessfully(target);
+                l.fetchedServiceNamesForAccount(target);
             }
+            saveState();
             
             for (Service service : target.getAllServices()) {
                 startFetch(new ServiceUpdaterTask(service, fetcher));
@@ -252,7 +273,7 @@ public class DataFetcher  {
         public void error(Exception ex) {
             allServices = null;
             for (AccountUpdateListener l : listeners) {
-                l.errorUpdatingAccounts(target, ex);
+                l.errorUpdatingServices(target, ex);
             }
         }
     }
@@ -268,7 +289,7 @@ public class DataFetcher  {
         @Override
         public void before() {
             for (AccountUpdateListener l : listeners) {
-                l.serviceLoadStarted(target);
+                l.serviceUpdateStarted(target);
             }
         }
 
@@ -281,8 +302,9 @@ public class DataFetcher  {
         public void after() {
             allServices = null;
             for (AccountUpdateListener l : listeners) {
-                l.serviceUpdatedCompletedSuccessfully(target);
+                l.serviceUpdated(target);
             }
+            saveState();
         }
 
         @Override

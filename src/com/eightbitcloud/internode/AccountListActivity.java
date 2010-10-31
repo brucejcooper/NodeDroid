@@ -19,7 +19,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.Button;
@@ -28,9 +27,9 @@ import android.widget.ListView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.TableLayout.LayoutParams;
 
 import com.eightbitcloud.internode.data.Account;
+import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.provider.WrongPasswordException;
@@ -39,6 +38,7 @@ public class AccountListActivity extends ListActivity {
     private LayoutInflater mInflater;
     private  static final int USER_PASS_ID = 0;
     private List<Account> accounts = new ArrayList<Account>();
+    private ArrayAdapter<CharSequence> providerSpinnerAdapter;
     
     private int editedRow = -1;
     
@@ -73,6 +73,7 @@ public class AccountListActivity extends ListActivity {
                     holder = new ViewHolder();
                     holder.nameView = (TextView) convertView.findViewById(R.id.accountname);
                     holder.accountView = (TextView) convertView.findViewById(R.id.accountnumber);
+                    holder.providerView = (TextView) convertView.findViewById(R.id.providername);
                     convertView.setTag(holder);
                 } else {
                     // Get the ViewHolder back to get fast access to the TextView
@@ -81,6 +82,7 @@ public class AccountListActivity extends ListActivity {
                 }
                 Account account = getItem(position);
                 holder.nameView.setText(account.getUsername());
+                holder.providerView.setText(account.getProvider().getName());
                 StringBuilder sb = new StringBuilder();
                 for (Service service: account.getAllServices()) {
                     if (sb.length() != 0) {
@@ -146,19 +148,46 @@ public class AccountListActivity extends ListActivity {
     @Override
     public void onPrepareDialog(int id, Dialog dialog) {
         Button deleteButton = (Button) dialog.findViewById(R.id.userdialog_delete);
+        EditText usernameEditor= (EditText) dialog.findViewById(R.id.username_editor);
+        EditText passwordEditor= (EditText) dialog.findViewById(R.id.password_editor);
+        Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
         if (editedRow >= 0) {
             Account account = (Account) getListAdapter().getItem(editedRow);
-            EditText usernameEditor= (EditText) dialog.findViewById(R.id.username_editor);
-            EditText passwordEditor= (EditText) dialog.findViewById(R.id.password_editor);
             usernameEditor.setText(account.getUsername());
             passwordEditor.setText(account.getPassword());
+            
+            providerSpinner.setSelection(providerSpinnerAdapter.getPosition(account.getProvider().getName()));
             
             deleteButton.setEnabled(true);
         } else {
             deleteButton.setEnabled(false);
+            usernameEditor.setText("");
+            passwordEditor.setText("");
+            
+            providerSpinner.setSelection(0);
         }
         super.onPrepareDialog(id, dialog);
     }
+    
+    private void showConfirmDialog(String msg, final Runnable r) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(AccountListActivity.this);
+        builder.setMessage(msg)
+               .setCancelable(true)
+               .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                   public void onClick(DialogInterface confirmDialog, int id) {
+                       confirmDialog.cancel();
+                       r.run();
+                   }
+               }).setNegativeButton("No", new DialogInterface.OnClickListener() {
+                   public void onClick(DialogInterface confirmDialog, int id) {
+                       confirmDialog.cancel();
+                  }
+              });
+        AlertDialog alert = builder.create();
+        alert.show();
+
+    }
+    
     
     @Override
     public Dialog onCreateDialog(int id) {
@@ -174,14 +203,15 @@ public class AccountListActivity extends ListActivity {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 
             final Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
-            ArrayAdapter adapter = ArrayAdapter.createFromResource(this, R.array.providers, android.R.layout.simple_spinner_item);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-            providerSpinner.setAdapter(adapter);
+            providerSpinnerAdapter = (ArrayAdapter<CharSequence>) ArrayAdapter.createFromResource(this, R.array.providers, android.R.layout.simple_spinner_item);
+            providerSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            providerSpinner.setAdapter(providerSpinnerAdapter);
 
             
             Button saveButton = (Button) dialog.findViewById(R.id.userdialog_ok);
             saveButton.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) {
+                
+                public void performSave() {
                     EditText usernameEditor= (EditText) dialog.findViewById(R.id.username_editor);
                     EditText passwordEditor= (EditText) dialog.findViewById(R.id.password_editor);
 
@@ -195,7 +225,23 @@ public class AccountListActivity extends ListActivity {
                     Object sel = providerSpinner.getSelectedItem();
                     dummyAccount.setProvider(ProviderStore.getInstance().getProvider(sel.toString().toLowerCase()));
                     new PasswordCheckerTask().execute(dummyAccount);
+
+                }
+                
+                public void onClick(View v) {
                     
+                    String selectedProvider = (String) providerSpinner.getSelectedItem();
+                    Provider provider = ProviderStore.getInstance().getProvider(selectedProvider);
+                    
+                    if (provider.isBeta()) {
+                        showConfirmDialog("This provider is in beta, and may not work correctly.  Please only use this provider if you are willing to provide feedback to the author.  Continue?", new Runnable() {
+                            public void run() {
+                                performSave();
+                            }
+                        });
+                    } else {
+                        performSave();
+                    }
                 }
             });
 
@@ -203,7 +249,7 @@ public class AccountListActivity extends ListActivity {
             Button cancelButton = (Button) dialog.findViewById(R.id.userdialog_cancel);
             cancelButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    dialog.cancel();
+                    dismissDialog(USER_PASS_ID);
                 }
             });
 
@@ -213,22 +259,12 @@ public class AccountListActivity extends ListActivity {
             Button deleteButton = (Button) dialog.findViewById(R.id.userdialog_delete);
             deleteButton.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                    AlertDialog.Builder builder = new AlertDialog.Builder(AccountListActivity.this);
-                    builder.setMessage("Are you sure you want to delete this account?")
-                           .setCancelable(true)
-                           .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                               public void onClick(DialogInterface confirmDialog, int id) {
-                                   confirmDialog.cancel();
-                                   dialog.cancel();
-                                   deleteAccount(editedRow);
-                               }
-                           }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-                               public void onClick(DialogInterface confirmDialog, int id) {
-                                   confirmDialog.cancel();
-                              }
-                          });
-                    AlertDialog alert = builder.create();
-                    alert.show();
+                    showConfirmDialog("Are you sure you want to delete this account?", new Runnable() {
+                        public void run() {
+                            dismissDialog(USER_PASS_ID);
+                            deleteAccount(editedRow);
+                        }
+                    });
                 }
             });
 
@@ -284,7 +320,6 @@ public class AccountListActivity extends ListActivity {
         @Override
         protected void onPostExecute(Boolean result) {
             super.onPostExecute(result);
-            Log.d(NodeUsage.TAG, "Result is " + result);
             
             progressDialog.dismiss();
             if (result) {
@@ -319,6 +354,7 @@ public class AccountListActivity extends ListActivity {
     
     static class ViewHolder {
         TextView nameView;
+        TextView providerView;
         TextView accountView; 
     }
 }

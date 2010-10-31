@@ -30,6 +30,7 @@ public class ProviderStore {
 
         Provider optusProv = new Provider();
         optusProv.setName("Optus");
+        optusProv.setBeta(true);
         optusProv.setLogoURL("http://www.optus.com.au/home/assets/images/shared/logo-yes-optus.gif");
         optusProv.setUrl("http://www.optus.com.au/");
         optusProv.setTextColour("#006685");        

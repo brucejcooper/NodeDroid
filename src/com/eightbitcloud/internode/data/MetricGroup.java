@@ -1,5 +1,6 @@
 package com.eightbitcloud.internode.data;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -7,7 +8,12 @@ import java.util.List;
 
 import com.eightbitcloud.internode.UsageGraphType;
 
-public class MetricGroup implements NamedThing {
+public class MetricGroup implements NamedThing, Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -8723220122265773158L;
+    
     private Service service;
     private String name;
     private CounterStyle style = CounterStyle.QUOTA;

@@ -35,6 +35,7 @@ import com.admob.android.ads.SimpleAdListener;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
+import com.eightbitcloud.internode.data.ServiceIdentifier;
 
 public class NodeUsage extends Activity implements AccountUpdateListener {
     public static final String TAG = "NodeDroid";
@@ -44,7 +45,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
     Typeface internodeFont;
     
-    Map<String, ServiceView> serviceViews = new HashMap<String, ServiceView>();
+    Map<ServiceIdentifier, ServiceView> serviceViews = new HashMap<ServiceIdentifier, ServiceView>();
 
     private PagingScrollView scroller;
 
@@ -141,7 +142,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
                     }
                     holder.accountType.setText(item.getAccount().getProvider().getName());
                     holder.name.setText(item.getAccount().getUsername());
-                    holder.serviceID.setText(item.getIdentifier());
+                    holder.serviceID.setText(item.getIdentifier().toString());
                     
 
                     holder.adapter.setService(item);
@@ -316,6 +317,19 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         return view;
     }
     
+    /**
+     * When services are removed, they have their account set to null.  This method detects these view and removes them from the scroller.
+     */
+    public void removeStaleServiceViews() {
+        for (ServiceView view: serviceViews.values()) {
+            Service service = view.getService();
+            scroller.removePage(view);
+            if (service.getAccount() == null) {
+                serviceViews.remove(service.getIdentifier());
+            }
+        }
+    }
+    
     @Override
     public void onStart() {
         super.onStart();
@@ -421,7 +435,6 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
                 startActivityForResult(intent, 0);
                 return true;
             case R.id.refreshMenuItem:
-                // TODO cancel existing refresh first
                 Toast.makeText(this, "Refreshing Usage", Toast.LENGTH_SHORT).show();
                 dataFetcher.updateAccounts();
                 return true;
@@ -432,21 +445,10 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
 
     public void reportFatalException(Exception ex) {
+        Log.i(TAG, "Making TOAST for error on thread: " + Thread.currentThread());
         Toast t = Toast.makeText(this, "Error: " + ex.getMessage(), Toast.LENGTH_LONG);
         t.show();
     }
-    
-
-//    void doUnbindService() {
-//        if (mIsBound) {
-//            // Detach our existing connection.
-//            if (dataFetcher != null) {
-//                dataFetcher.deregisterCallback(this);
-//            }
-//            unbindService(mConnection);
-//            mIsBound = false;
-//        }
-//    }
 
     @Override
     protected void onDestroy() {
@@ -458,24 +460,25 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
     /* Messages from the data fetcher service */ 
     
-    public void accountLoadStarted(Account account) {
+    public void startingServiceFetchForAccount(Account account) {
         Log.i(TAG, "Account " + account + " loading services");
         // TODO Auto-generated method stub
         
     }
 
-    public void accountLoadCompletedSuccessfully(Account account) {
+    public void fetchedServiceNamesForAccount(Account account) {
         Log.i(TAG, "Account " + account + " completed loading services");
+        // Remove any services that don't belong to the account any more.
         
     }
 
-    public void errorUpdatingAccounts(Account account, Exception ex) {
+    public void errorUpdatingServices(Account account, Exception ex) {
         Log.e(TAG, "Account " + account + " got error while updating services", ex);
         reportFatalException(ex);
         updateLandscapeView();
     }
 
-    public void serviceLoadStarted(Service service) {
+    public void serviceUpdateStarted(Service service) {
         Log.i(TAG, "Service " + service + " beginning update");
         if (isDisplayPortrait()) {
             getViewForService(service).setLoading(true);
@@ -485,7 +488,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         
     }
 
-    public void serviceUpdatedCompletedSuccessfully(Service service) {
+    public void serviceUpdated(Service service) {
         Log.i(TAG, "Service " + service + " finished updating");
         if (isDisplayPortrait()) {
             ServiceView sv = getViewForService(service); 
@@ -529,4 +532,5 @@ class LandViewHolder {
         this.adapter = metricGroupListAdapter;
     }
 }
+
 

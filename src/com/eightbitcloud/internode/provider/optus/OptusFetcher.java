@@ -9,9 +9,11 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +42,7 @@ import com.eightbitcloud.internode.data.MetricGroup;
 import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.Service;
+import com.eightbitcloud.internode.data.ServiceIdentifier;
 import com.eightbitcloud.internode.data.Unit;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
@@ -56,7 +59,7 @@ public class OptusFetcher implements ProviderFetcher {
     private static final String USAGE_URL = "UsageURL";
     private static final String SMAGENTKEY = "<input type=hidden name=smagentname value=";
     private static final BigDecimal GST_MULTIPLIER = new BigDecimal("1.1");
-    private static final String EX_CAP = "Other";
+//    private static final String EX_CAP = "Other";
     private HttpClient httpClient;
     public DateFormat rolloverFormatter = new SimpleDateFormat("dd/MM/yyyy");
 
@@ -81,8 +84,8 @@ public class OptusFetcher implements ProviderFetcher {
         }
         return resp;
     }
-
-    public void fetchServices(Account account) throws AccountUpdateException, InterruptedException {
+    
+    private String login(Account account) throws AccountUpdateException, InterruptedException {
         try {
             HttpGet loginPage = new HttpGet("http://www.optus.com.au/login");
             HttpResponse resp = executeThenCheckIfInterrupted(loginPage);
@@ -119,7 +122,16 @@ public class OptusFetcher implements ProviderFetcher {
                 throw new IOException("Expected OK from login: " + resp.getStatusLine());
             
             String loginResult = EntityUtils.toString(resp.getEntity());
-            
+            return loginResult;
+        } catch (IOException ex) {
+            throw new AccountUpdateException("Error logging in", ex);
+   
+        }
+    }
+
+    public void fetchServices(Account account) throws AccountUpdateException, InterruptedException {
+        try {
+            String loginResult = login(account);
             
             
             Pattern accountNumberPattern = Pattern.compile("<div\\s+class=\"prodcut_number\">([^<]*)</div>");
@@ -151,6 +163,8 @@ public class OptusFetcher implements ProviderFetcher {
             Pattern itemSeparatorPattern = Pattern.compile("<li class=\"service_item [^\"]*\">");
             List<String> itemSections = cutUp(loginResult, itemSeparatorPattern, m3.end());
             
+            Set<Service> oldServices = new HashSet<Service>(account.getAllServices());
+            
             for (String section: itemSections) {
                 // Get the Phone number.  
                 // TODO technically there could be multiple of these, and it might be possibel to have non-digits.
@@ -167,13 +181,20 @@ public class OptusFetcher implements ProviderFetcher {
                     throw new IOException("Expected to find url for usage");
                 String usageURL = prependHost(usageURLMatcher.group(1));
                 
-                Service service = account.getService(phoneNumber);
+                
+                ServiceIdentifier serviceIdentifier = new ServiceIdentifier(provider.getName(), phoneNumber);
+                Service service = account.getService(serviceIdentifier);
                 if (service == null) {
                     service = new Service();
-                    service.setIdentifier(phoneNumber);
-                    service.setProperty(USAGE_URL, usageURL);
+                    service.setIdentifier(serviceIdentifier);
                     account.addService(service);
                 }
+                oldServices.remove(service);
+                service.setProperty(USAGE_URL, usageURL);
+            }
+            
+            for (Service service: oldServices) {
+                account.removeService(service);
             }
             
         } catch (IOException ex) {
@@ -441,7 +462,7 @@ public class OptusFetcher implements ProviderFetcher {
                         group.addComponent(value);
                         
                     }
-                    Log.d(NodeUsage.TAG, "REad " + time + "/" + destination + "/" + quantity + "/" + originalType + "(" +type + ")/"+ cost + ". Value is " + value.getName());
+                    //Log.d(NodeUsage.TAG, "REad " + time + "/" + destination + "/" + quantity + "/" + originalType + "(" +type + ")/"+ cost + ". Value is " + value.getName());
 
                     Matcher timeMatcher = timePattern.matcher(quantity);
                     Value quantityValue;
@@ -501,13 +522,19 @@ public class OptusFetcher implements ProviderFetcher {
             txToComponents.put("DIV-VoiceMail", "Other");
             txToComponents.put("Freephone", "Mobile Call Charges");
             txToComponents.put("Handset Feature", "Mobile Call Charges");
-            txToComponents.put("Voicemail", "Other");
+            txToComponents.put("VoiceMail", "Other");
             
             txToComponents.put("Internet", "Data - Mobile Internet");
             txToComponents.put("Social Internet", "Social Internet");
 
         
         }
+        
+        // If its a mobile, but the duration is a number, then its actually a MMS
+        if (type.equals("Mobile") && quantity.indexOf(':') < 0) {
+            return "MMS - Multimedia Messaging";
+        }
+        
         String result =  txToComponents.get(type);
         if (result == null) {
             // Assume all calls are included in cap.  TODO This is probably wrong
@@ -596,7 +623,12 @@ public class OptusFetcher implements ProviderFetcher {
     }
 
     public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException {
-        // TODO Does nothing at the moment!
+        try {
+            login(account);
+        } catch (InterruptedException e) {
+            // Unlikely this will happen, but re-throw it anyway, otherwise its an attack option
+            throw new AccountUpdateException("Interrupted", e);
+        }
         
     }
 

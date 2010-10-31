@@ -2,16 +2,15 @@ package com.eightbitcloud.internode.data;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class Account extends ThingWithProperties {
     private String username;
     private String password;
     private Provider provider;
-    private Map<String, Service> services = new HashMap<String, Service>();
+    private Map<ServiceIdentifier, Service> services = new HashMap<ServiceIdentifier, Service>();
 
-    public Service getService(String accountID) {
+    public Service getService(ServiceIdentifier accountID) {
         return services.get(accountID);
     }
 
@@ -46,5 +45,15 @@ public class Account extends ThingWithProperties {
 
     public Collection<Service> getAllServices() {
         return services.values();
+    }
+
+    public boolean removeService(Service service) {
+        Service removed = services.remove(service.getIdentifier());
+        if (removed != null) {
+            removed.setAccount(null);
+            return true;
+        }
+        return false;
+        
     }
 }

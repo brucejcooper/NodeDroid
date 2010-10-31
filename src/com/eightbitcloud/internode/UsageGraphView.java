@@ -92,7 +92,7 @@ public class UsageGraphView extends LinearLayout {
                 b.setButtonDrawable(R.drawable.btn_radio); // Naughty, but it does stop the button from drawing.
                 b.setPadding(5,0,5,0);
                 b.setTextSize(12);
-                Log.d(NodeUsage.TAG, "Created button for " + type + " with id of " + type.ordinal());
+//                Log.d(NodeUsage.TAG, "Created button for " + type + " with id of " + type.ordinal());
                 b.setId(GRAPHTYPE_ID_BASE + type.ordinal());
                 buttonLayout.addView(b);
             }
@@ -103,6 +103,7 @@ public class UsageGraphView extends LinearLayout {
         if (!group.getGraphTypes().contains(newGraphType)) {
             newGraphType = group.getGraphTypes().get(0);
         }
+        this.selectedUsageGraphType = null;
         setSelectedGraph(newGraphType);
         
         requestLayout();
@@ -110,27 +111,28 @@ public class UsageGraphView extends LinearLayout {
     }
 
     public void setSelectedGraph(UsageGraphType usageGraphType) {
-        this.selectedUsageGraphType = usageGraphType;
-        Log.d(NodeUsage.TAG, "Selected graphType is " + usageGraphType + ", Selecting " + usageGraphType.ordinal() + " Current selection is " + buttonLayout.getCheckedRadioButtonId());
-        buttonLayout.check(GRAPHTYPE_ID_BASE + usageGraphType.ordinal());
-        
-        
-        // GenerateData.
-        switch (usageGraphType) {
-        case BREAKDOWN:
-            generateBreakdown();
-            break;
-        case MONTHLY_USAGE:
-            generateMonthly();
-            break;
-        case YEARLY_USAGE:
-            generateYearly();
-            break;
+        if (this.selectedUsageGraphType != usageGraphType) {
+            this.selectedUsageGraphType = usageGraphType;
+//            Log.d(NodeUsage.TAG, "Selected graphType is " + usageGraphType + ", Selecting " + usageGraphType.ordinal() + " Current selection is " + buttonLayout.getCheckedRadioButtonId());
+            buttonLayout.check(GRAPHTYPE_ID_BASE + usageGraphType.ordinal());
+            
+            
+            // GenerateData.
+            switch (usageGraphType) {
+            case BREAKDOWN:
+                generateBreakdown();
+                break;
+            case MONTHLY_USAGE:
+                generateMonthly();
+                break;
+            case YEARLY_USAGE:
+                generateYearly();
+                break;
+            }
+            
+            
+            refreshDrawableState();
         }
-        
-        
-        refreshDrawableState();
-        
     }
 
     private void generateYearly() {
@@ -146,13 +148,16 @@ public class UsageGraphView extends LinearLayout {
             cal.set(Calendar.DAY_OF_MONTH, 1);
             int count = group.getComponents().size();
 
+            List<MeasuredValue> values = getOrderedValues();
+
+            
             for (int i = 0; i < 12; i++) {
                 cal.setTime(monthEnd);
                 cal.add(Calendar.MONTH, -1);
                 Date monthBegin = cal.getTime();
 
                 int index = 0;
-                for (MeasuredValue mv: group.getComponents()) {
+                for (MeasuredValue mv: values) {
                     SortedMap<Date, UsageRecord> usage = mv.getUsageRecords();
                     Value sum = new Value(0, mv.getUnits());
                     SortedMap<Date, UsageRecord> monthEntries = usage.subMap(monthBegin, monthEnd);
@@ -176,6 +181,13 @@ public class UsageGraphView extends LinearLayout {
         }        
         
     }
+    
+    private List<MeasuredValue> getOrderedValues() {
+        List<MeasuredValue> values = new ArrayList<MeasuredValue>(group.getComponents());
+        Collections.sort(values, Collections.reverseOrder());
+        return values;
+        
+    }
 
     private void generateMonthly() {
         SortedMap<Date, Value[]> monthStats = new TreeMap<Date, Value[]>();
@@ -187,14 +199,15 @@ public class UsageGraphView extends LinearLayout {
                 Calendar cal = Calendar.getInstance(); // TODO make it respect the TZ
                 cal.setTime(periodStart);
                 int count = group.getComponents().size();
-    
+                
+                List<MeasuredValue> values = getOrderedValues();
                 while (periodStart.before(rollover)) {
                     cal.setTime(periodStart);
                     cal.add(Calendar.DAY_OF_MONTH, 1);
                     Date periodEnd = cal.getTime();
     
                     int index = 0;
-                    for (MeasuredValue mv: group.getComponents()) {
+                    for (MeasuredValue mv: values) {
                         SortedMap<Date, UsageRecord> usage = mv.getUsageRecords();
                         Value sum = new Value(0, mv.getUnits());
                         SortedMap<Date, UsageRecord> monthEntries = usage.subMap(periodStart, periodEnd);
@@ -256,7 +269,7 @@ public class UsageGraphView extends LinearLayout {
 //    }
 
     private void generateBreakdown() {
-        List<MeasuredValue> values = new ArrayList<MeasuredValue>(group.getComponents());
+        List<MeasuredValue> values = getOrderedValues();
         Collections.sort(values, Collections.reverseOrder());
         Map<MeasuredValue, Value[]> data = new HashMap<MeasuredValue, Value[]>();
         for (MeasuredValue v: values) {

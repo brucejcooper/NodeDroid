@@ -1,24 +1,24 @@
 package com.eightbitcloud.internode.data;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
-import com.eightbitcloud.internode.util.DateTools;
 
 
-public class Plan {
+public class Plan extends ThingWithProperties implements Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 1070337460127518864L;
     private String description;
     private String name;
     private Date rolloverDate;
-    private Map<String, Object> properties = new HashMap<String, Object>();
     private Value cost;
     private PlanInterval interval;
     private List<String> extras = new ArrayList<String>();
-    private Date cachedPreviousRollover;
+    transient private Date cachedPreviousRollover;
 
     public String getDescription() {
         return description;
@@ -68,13 +68,6 @@ public class Plan {
     }
     
 
-    public void setProperty(String key, Object value) {
-        properties.put(key, value);
-    }
-
-    public Object getProperty(String key) {
-        return properties.get(key);
-    }
 
     public void setCost(Value cost) {
         assert cost.getUnit() == Unit.CENT;

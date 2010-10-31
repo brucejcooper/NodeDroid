@@ -1,8 +1,13 @@
 package com.eightbitcloud.internode.data;
 
+import java.io.Serializable;
 import java.util.Date;
 
-public class UsageRecord {
+public class UsageRecord implements Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -4516468389196362058L;
     private Date time;
     private Value amount;
     private Value cost;

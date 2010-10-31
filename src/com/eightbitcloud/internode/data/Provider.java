@@ -1,9 +1,6 @@
 package com.eightbitcloud.internode.data;
 
 import java.security.KeyStore;
-import java.util.Map;
-
-import android.graphics.Color;
 
 import com.eightbitcloud.internode.GraphColors;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
@@ -18,6 +15,7 @@ public class Provider extends ThingWithProperties {
     private String logoURL;
     
     private GraphColors graphColors;
+    private boolean beta;
     
     
     public GraphColors getGraphColors() {
@@ -71,5 +69,12 @@ public class Provider extends ThingWithProperties {
     public String toString() {
         return name;
         
+    }
+    public boolean isBeta() {
+        return beta;
+    }
+    
+    public void setBeta(boolean beta) {
+        this.beta = beta;
     }
 }

@@ -7,6 +7,8 @@ import java.security.KeyStore;
 import java.text.ParseException;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -46,6 +48,7 @@ import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.PlanInterval;
 import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.Service;
+import com.eightbitcloud.internode.data.ServiceIdentifier;
 import com.eightbitcloud.internode.data.Unit;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
@@ -230,6 +233,7 @@ public class InternodeFetcher implements ProviderFetcher {
         NodeList nl = e.getElementsByTagName("usage");
         
         MeasuredValue usage = service.getMetricGroup(METRIC_GROUP).getComponent(USAGE_VALUE);
+        usage.clearUsageRecords();
         
         for (int i = 0; i < nl.getLength(); i++) {
             Element usageE = (Element) nl.item(i);
@@ -252,35 +256,45 @@ public class InternodeFetcher implements ProviderFetcher {
             Element response = request(baseURL, account);
             NodeList services = XMLTools.getNode(XMLTools.getAPINode(response), "services").getElementsByTagName("service");
             
+            Set<Service> oldServices = new HashSet<Service>(account.getAllServices());
             for (int i = 0; i < services.getLength(); i++) {
                 Element serviceElement = (Element) services.item(i);
-                String accountNumber = serviceElement.getFirstChild().getNodeValue();
+                ServiceIdentifier accountNumber = new ServiceIdentifier(provider.getName(), serviceElement.getFirstChild().getNodeValue());
                 
+
                 Service service = account.getService(accountNumber);
                 if (service == null) {
                     service = new Service();
                     service.setIdentifier(accountNumber);
                     account.addService(service);
                 }
+                oldServices.remove(service);
                 
                 // Set up the Metric Group for the Account - at this stage, we only measure metered usage.
+                MetricGroup mg = service.getMetricGroup(METRIC_GROUP);
+                if (mg == null) {
+                    mg = new MetricGroup(service, METRIC_GROUP, Unit.BYTE, CounterStyle.QUOTA);
+                    mg.setGraphTypes(UsageGraphType.MONTHLY_USAGE, UsageGraphType.YEARLY_USAGE);
+                    mg.setStyle(CounterStyle.QUOTA);
                 
-                MetricGroup mg = new MetricGroup(service, METRIC_GROUP, Unit.BYTE, CounterStyle.QUOTA);
-                mg.setGraphTypes(UsageGraphType.MONTHLY_USAGE, UsageGraphType.YEARLY_USAGE);
-                mg.setStyle(CounterStyle.QUOTA);
-                
-                MeasuredValue val = new MeasuredValue(Unit.BYTE);
-                val.setName(USAGE_VALUE);
-                val.setAmount(new Value(0, Unit.BYTE));
-                mg.setComponents(Collections.singletonList(val));
-                service.setMetricGroups(Collections.singletonList(mg));
+                    MeasuredValue val = new MeasuredValue(Unit.BYTE);
+                    val.setName(USAGE_VALUE);
+                    val.setAmount(new Value(0, Unit.BYTE));
+                    mg.setComponents(Collections.singletonList(val));
+                    service.setMetricGroups(Collections.singletonList(mg));
+                }
                 
                 service.setProperty(SERVICETYPE_KEY, ServiceType.valueOf(serviceElement.getAttribute("type")));
                 service.setProperty(SERVICEURL_KEY, new URL(baseURL, serviceElement.getAttribute("href")));
                 
             }
+            
+            for (Service service: oldServices) {
+                account.removeService(service);
+            }
+            
         } catch (final Exception ex) {
-            Log.e(NodeUsage.TAG, "Error loading stuff", ex);
+            throw new AccountUpdateException("Error loading services", ex);
         }
     }
 

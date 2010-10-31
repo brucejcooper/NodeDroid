@@ -1,10 +1,15 @@
 package com.eightbitcloud.internode.data;
 
+import java.io.Serializable;
 import java.util.Date;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class MeasuredValue implements NamedThing, Comparable<MeasuredValue> {
+public class MeasuredValue implements NamedThing, Comparable<MeasuredValue>, Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -9013242817918750634L;
     private String name;
     private Value amount;
     private SortedMap<Date, UsageRecord> usageRecords = new TreeMap<Date, UsageRecord>();
@@ -55,6 +60,10 @@ public class MeasuredValue implements NamedThing, Comparable<MeasuredValue> {
     @Override
     public String toString() {
         return name;
+    }
+
+    public void clearUsageRecords() {
+        usageRecords.clear();
     }
 
 }

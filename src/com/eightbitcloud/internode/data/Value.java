@@ -1,9 +1,16 @@
 package com.eightbitcloud.internode.data;
 
+import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 
-public class Value implements Comparable<Value> {
+public class Value implements Comparable<Value>, Serializable {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = -6139660604313725310L;
+    
+    
     private long amt;
     private Unit unit;
     

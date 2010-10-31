@@ -83,6 +83,10 @@ public class ServiceView extends FrameLayout {
         
         update();
     }
+    
+    public Service getService() {
+        return this.service;
+    }
 
     
     public synchronized void setLoading(boolean loading) {
@@ -117,7 +121,7 @@ public class ServiceView extends FrameLayout {
     public void update() {
         Plan plan = service.getPlan();
 
-        ((TextView) findViewById(R.id.serviceid)).setText(service.getIdentifier());
+        ((TextView) findViewById(R.id.serviceid)).setText(service.getIdentifier().toString());
         ((TextView) findViewById(R.id.plan)).setText(plan == null ? "" : plan.getName());
 
         
