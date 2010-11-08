@@ -1,11 +1,14 @@
 package com.eightbitcloud.internode.provider;
 
+import java.util.List;
+
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.Service;
 
 public interface ProviderFetcher {
-
-    void fetchServices(Account account) throws AccountUpdateException, InterruptedException;
+    List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException;
+    void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException;
     void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException;
-    void updateService(Service service) throws AccountUpdateException, InterruptedException;
+    
+    void setLogTraffic(boolean val);
 }

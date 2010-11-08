@@ -1,7 +1,10 @@
+
 package com.eightbitcloud.internode;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -10,13 +13,16 @@ import java.util.concurrent.TimeUnit;
 import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.Service;
+import com.eightbitcloud.internode.data.ServiceIdentifier;
+import com.eightbitcloud.internode.provider.AccountUpdateException;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
+import com.eightbitcloud.internode.provider.ServiceUpdateDetails;
 
 /**
  * This service is the component that is reponsible for making network connections.  It is done here so that
@@ -38,7 +44,7 @@ public class DataFetcher  {
     SharedPreferences prefs;
     private List<Service> allServices;
     
-    BackgroundSaver backgroundSaver;
+//    BackgroundSaver backgroundSaver;
 
     ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 5, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
     
@@ -67,18 +73,18 @@ public class DataFetcher  {
 //        mNM = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
 
         prefs = context.getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
-        prefs.registerOnSharedPreferenceChangeListener(new OnSharedPreferenceChangeListener() {
-            public void onSharedPreferenceChanged(SharedPreferences arg0, String arg1) {
-                if (!ignoringPreferenceUpdates) {
-                    Log.i(NodeUsage.TAG, "Preferences Changed!!!!!.... Updating accounts");
-                    refreshFromPreferences();
-                }
-                // TODO any need to take action? Possibly cancel tasks on accounts that no longer exist
-            }
-        });
+//        prefs.registerOnSharedPreferenceChangeListener(new OnSharedPreferenceChangeListener() {
+//            public void onSharedPreferenceChanged(SharedPreferences arg0, String arg1) {
+//                if (!ignoringPreferenceUpdates) {
+//                    Log.i(NodeUsage.TAG, "Preferences Changed!!!!!.... Updating accounts");
+//                    refreshFromPreferences();
+//                }
+//                // TODO any need to take action? Possibly cancel tasks on accounts that no longer exist
+//            }
+//        });
         refreshFromPreferences();
-        backgroundSaver = new BackgroundSaver();
-        backgroundSaver.start();
+//        backgroundSaver = new BackgroundSaver();
+//        backgroundSaver.start();
         
     }
 
@@ -92,8 +98,8 @@ public class DataFetcher  {
     
     public void refreshFromPreferences() {
         allServices = null;
+        Log.i(NodeUsage.TAG, "Data Fetcher Reloading");
         PreferencesSerialiser.deserialise(prefs, accounts);
-        Log.i(NodeUsage.TAG, "after deserialising, services are " + getAllServices());
         updateAccounts();
         
     }
@@ -130,13 +136,14 @@ public class DataFetcher  {
         Log.i(NodeUsage.TAG, "Shutting down Background Fetch Service");
         cancelRunningFetches();
 
-        
-        backgroundSaver.shutdown();
-        try {
-            // Wait for it to complete, otherwise we may do two saves on top of each other...
-            backgroundSaver.join();
-        } catch (InterruptedException e) {
-        }
+        saveState();
+
+//        backgroundSaver.shutdown();
+//        try {
+//            // Wait for it to complete, otherwise we may do two saves on top of each other...
+//            backgroundSaver.join();
+//        } catch (InterruptedException e) {
+//        }
 //      sp.edit().putString("graphType", graphType.toString()).commit();
 
 
@@ -206,7 +213,7 @@ public class DataFetcher  {
         }
     }
     
-    private abstract class UpdateTask<T> implements Runnable {
+    private abstract class UpdateTask<T,Y> implements Runnable {
         protected T target;
         
         public UpdateTask(T target) {
@@ -224,11 +231,20 @@ public class DataFetcher  {
                         before();
                     }
                 });
-                execute();
-                backgroundSaver.scheduleSave();
+                final Y val = execute();
+//                backgroundSaver.scheduleSave();
                 handler.post(new Runnable() {
                     public void run() {
-                        after();
+                        try {
+                            after(val);
+                        } catch (final Exception ex) {
+                            handler.post(new Runnable() {
+                                public void run() {
+                                    error(ex);
+                                }
+                            });
+                        }
+
                     }
                 });
             } catch (final InterruptedException ex) {
@@ -244,12 +260,12 @@ public class DataFetcher  {
         }
         
         public abstract void before();
-        public abstract void execute() throws Exception;
-        public abstract void after();
+        public abstract Y execute() throws Exception;
+        public abstract void after(Y val) throws AccountUpdateException;
         public abstract void error(Exception ex);
     }
 
-    private class ServiceFetcher extends UpdateTask<Account> {
+    private class ServiceFetcher extends UpdateTask<Account, List<ServiceUpdateDetails>> {
         private ProviderFetcher fetcher;
 
         public ServiceFetcher(Account account) {
@@ -264,13 +280,38 @@ public class DataFetcher  {
         }
 
         @Override
-        public void execute() throws Exception {
+        public List<ServiceUpdateDetails> execute() throws Exception {
             fetcher = target.getProvider().createFetcher();
-            fetcher.fetchServices(target);
+            boolean extraLogging = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("performExtraLogging", false);
+            fetcher.setLogTraffic(extraLogging);
+            return fetcher.fetchAccountUpdates(target);
         }
 
         @Override
-        public void after() {
+        public void after(List<ServiceUpdateDetails> details) throws AccountUpdateException {
+            
+            Set<Service> oldServices = new HashSet<Service>(target.getAllServices());
+            for (ServiceUpdateDetails u: details) {
+                ServiceIdentifier accountNumber = u.getIdentifier();
+            
+                Service service = target.getService(accountNumber);
+                if (service == null) {
+                    service = new Service();
+                    service.setIdentifier(accountNumber);
+                    target.addService(service);
+                }
+                service.addProperties(u.getProperties()); //TODO Should we clear existing ones first
+                
+                if (u.getPlan() != null) {
+                    service.setPlan(u.getPlan());
+                }
+                
+                oldServices.remove(service);
+            }
+            for (Service service: oldServices) {
+                target.removeService(service);
+            }
+            
             allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.fetchedServiceNamesForAccount(target);
@@ -290,7 +331,7 @@ public class DataFetcher  {
         }
     }
 
-    private class ServiceUpdaterTask extends UpdateTask<Service> {
+    private class ServiceUpdaterTask extends UpdateTask<Service, Service> {
         private ProviderFetcher fetcher;
 
         public ServiceUpdaterTask(Service service, ProviderFetcher fetcher) {
@@ -306,12 +347,16 @@ public class DataFetcher  {
         }
 
         @Override
-        public void execute() throws Exception {
-            fetcher.updateService(target);
+        public Service execute() throws Exception {
+            Service clone = target.createUpdateClone();
+            fetcher.fetchServiceDetails(clone);
+            return clone;
         }
 
         @Override
-        public void after() {
+        public void after(Service serviceWithUpdates) {
+            // Apply the service changes
+            target.updateFrom(serviceWithUpdates);
             allServices = null;
             for (AccountUpdateListener l : listeners) {
                 l.serviceUpdated(target);
@@ -328,45 +373,45 @@ public class DataFetcher  {
     }
     
     
-    public class BackgroundSaver extends Thread {
-        boolean running = true;
-        long scheduledSaveTime = -1;
-        
-        public synchronized void scheduleSave() {
-//            Log.i(NodeUsage.TAG, "Scheduling Saving preferences");
-            // Give it 5 seconds... It seems like a long time, but remember
-            // that saving will happen anyway.
-            this.scheduledSaveTime = System.currentTimeMillis() + 5000;
-            notify();
-        }
-        
-        public synchronized void shutdown() {
-            this.running = false;
-            notify();
-        }
-
-        @Override
-        public synchronized void run() {
-            while (running) {
-                long now = System.currentTimeMillis();
-                
-                if (scheduledSaveTime >= 0 && scheduledSaveTime <= now) {
-                    saveState();
-                    scheduledSaveTime = -1;
-                }
-    
-                try {
-                    if (scheduledSaveTime >= 0) {
-                        backgroundSaver.wait(scheduledSaveTime - now);
-                    } else {
-                        backgroundSaver.wait(); // wait until we're interrupted
-                    }
-                } catch (InterruptedException ex) {
-                }
-            }
-            // One final save
-            saveState();
-            Log.i(NodeUsage.TAG, "Background state saver finished");
-        }
-    }
+//    public class BackgroundSaver extends Thread {
+//        boolean running = true;
+//        long scheduledSaveTime = -1;
+//        
+//        public synchronized void scheduleSave() {
+////            Log.i(NodeUsage.TAG, "Scheduling Saving preferences");
+//            // Give it 5 seconds... It seems like a long time, but remember
+//            // that saving will happen anyway.
+//            this.scheduledSaveTime = System.currentTimeMillis() + 5000;
+//            notify();
+//        }
+//        
+//        public synchronized void shutdown() {
+//            this.running = false;
+//            notify();
+//        }
+//
+//        @Override
+//        public synchronized void run() {
+//            while (running) {
+//                long now = System.currentTimeMillis();
+//                
+//                if (scheduledSaveTime >= 0 && scheduledSaveTime <= now) {
+//                    saveState();
+//                    scheduledSaveTime = -1;
+//                }
+//    
+//                try {
+//                    if (scheduledSaveTime >= 0) {
+//                        backgroundSaver.wait(scheduledSaveTime - now);
+//                    } else {
+//                        backgroundSaver.wait(); // wait until we're interrupted
+//                    }
+//                } catch (InterruptedException ex) {
+//                }
+//            }
+//            // One final save
+//            saveState();
+//            Log.i(NodeUsage.TAG, "Background state saver finished");
+//        }
+//    }
 }

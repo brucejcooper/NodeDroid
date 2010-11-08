@@ -9,11 +9,9 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,12 +44,13 @@ import com.eightbitcloud.internode.data.ServiceIdentifier;
 import com.eightbitcloud.internode.data.Unit;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
+import com.eightbitcloud.internode.provider.AbstractFetcher;
 import com.eightbitcloud.internode.provider.AccountUpdateException;
-import com.eightbitcloud.internode.provider.ProviderFetcher;
+import com.eightbitcloud.internode.provider.ServiceUpdateDetails;
 import com.eightbitcloud.internode.provider.WrongPasswordException;
 import com.eightbitcloud.internode.util.DateTools;
 
-public class OptusFetcher implements ProviderFetcher {
+public class OptusFetcher extends AbstractFetcher {
     public static final String CAP_GROUP = "Cap";
     public static final String FREE_DATA_GROUP = "Free Data";
     public static final String FREE_CALLS_GROUP = "Free Calls";
@@ -60,29 +59,18 @@ public class OptusFetcher implements ProviderFetcher {
     private static final String SMAGENTKEY = "<input type=hidden name=smagentname value=";
     private static final BigDecimal GST_MULTIPLIER = new BigDecimal("1.1");
 //    private static final String EX_CAP = "Other";
-    private HttpClient httpClient;
     public DateFormat rolloverFormatter = new SimpleDateFormat("dd/MM/yyyy");
 
     public DateFormat eventTimeFormatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss aa");
 
     public TimeZone melbourneTZ;
-    private Provider provider;
 
 
     
     public OptusFetcher(Provider provider) {
-        this.provider = provider;
-        httpClient = new DefaultHttpClient();
+        super(provider);
         melbourneTZ = TimeZone.getTimeZone("GMT+1000");
         rolloverFormatter.setTimeZone(melbourneTZ);
-    }
-    
-    private HttpResponse executeThenCheckIfInterrupted(HttpRequestBase m) throws InterruptedException, ClientProtocolException, IOException {
-        HttpResponse resp = httpClient.execute(m);
-        if (Thread.currentThread().isInterrupted()) {
-            throw new InterruptedException();
-        }
-        return resp;
     }
     
     private String login(Account account) throws AccountUpdateException, InterruptedException {
@@ -116,7 +104,9 @@ public class OptusFetcher implements ProviderFetcher {
             formparams.add(new BasicNameValuePair("PASSWORD", account.getPassword()));
     
             loginPost.setEntity(new UrlEncodedFormEntity(formparams, "UTF-8"));
-            resp = executeThenCheckIfInterrupted(loginPost);
+            resp = executeThenCheckIfInterrupted(loginPost, account.getUsername(), account.getPassword());
+            
+            Log.d(NodeUsage.TAG, "After Executing login, URL is " + loginPost.getURI());
         
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
                 throw new IOException("Expected OK from login: " + resp.getStatusLine());
@@ -129,8 +119,11 @@ public class OptusFetcher implements ProviderFetcher {
         }
     }
 
-    public void fetchServices(Account account) throws AccountUpdateException, InterruptedException {
+    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException {
         try {
+            
+            List<ServiceUpdateDetails> result = new ArrayList<ServiceUpdateDetails>();
+            
             String loginResult = login(account);
             
             
@@ -153,21 +146,17 @@ public class OptusFetcher implements ProviderFetcher {
                 throw new IOException("Couldn't find account address");
             String address = cleanupSpaces(m3.group(1));
             
-            account.setProperty("Owner", owner);
+            account.setProperty("Owner", owner);  // TODO This is a direct update to the account, which shouldn't be done....
             account.setProperty("AccountNumber", accountNumber);
             account.setProperty("Address", address);
 
-            
-            
             // We need to cut it up between the items 
             Pattern itemSeparatorPattern = Pattern.compile("<li class=\"service_item [^\"]*\">");
             List<String> itemSections = cutUp(loginResult, itemSeparatorPattern, m3.end());
             
-            Set<Service> oldServices = new HashSet<Service>(account.getAllServices());
-            
             for (String section: itemSections) {
                 // Get the Phone number.  
-                // TODO technically there could be multiple of these, and it might be possibel to have non-digits.
+                // TODO technically there could be multiple of these, and it might be possible to have non-digits.
                 Pattern phoneNumberPattern = Pattern.compile("<ol class=\"service_items\">\\s*<li>\\s*<div>\\s*([0-9]+)\\s*</div>\\s*</li>");
                 Matcher phoneNumberMatcher = phoneNumberPattern.matcher(section);
                 if (!phoneNumberMatcher.find())
@@ -183,26 +172,20 @@ public class OptusFetcher implements ProviderFetcher {
                 
                 
                 ServiceIdentifier serviceIdentifier = new ServiceIdentifier(provider.getName(), phoneNumber);
-                Service service = account.getService(serviceIdentifier);
-                if (service == null) {
-                    service = new Service();
-                    service.setIdentifier(serviceIdentifier);
-                    account.addService(service);
-                }
-                oldServices.remove(service);
+                ServiceUpdateDetails service = new ServiceUpdateDetails(serviceIdentifier);
                 service.setProperty(USAGE_URL, usageURL);
+                
+                result.add(service);
             }
             
-            for (Service service: oldServices) {
-                account.removeService(service);
-            }
+            return result;
             
         } catch (IOException ex) {
             throw new AccountUpdateException("Error logging in", ex);
         }
     }
     
-    
+
 
     Pattern usageSummaryPattern = Pattern.compile("([0-9]+(.[0-9]+)?) ([MKG])B");
     Pattern SMSCountPattern = Pattern.compile("([0-9]+) SMS");
@@ -259,7 +242,7 @@ public class OptusFetcher implements ProviderFetcher {
 
     }
 
-    public void updateService(Service service) throws AccountUpdateException, InterruptedException {
+    public void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException {
         String usageDoc = null;
         try {
             HttpGet intermediatePage = new HttpGet((String)service.getProperty(USAGE_URL));
@@ -285,7 +268,7 @@ public class OptusFetcher implements ProviderFetcher {
             usageDoc = EntityUtils.toString(resp.getEntity());
             
             
-            Pattern serviceNumberPattern = Pattern.compile("<td>\\s*Service\\s+Number:[^<]*</td>\\s*<td>\\s*<strong>\\s*([0-9]+)\\s*</strong>");
+            Pattern serviceNumberPattern = Pattern.compile("<td>\\s*Service\\s+Number:[^<]*</td>\\s*<td>\\s*<strong>\\s*([0-9]+)\\s*([^<]+)?</strong>");
             Matcher serviceNumberMatcher = serviceNumberPattern.matcher(usageDoc);
             if (!serviceNumberMatcher.find())
                 throw new IOException("Couldn't find service Number");
@@ -326,6 +309,14 @@ public class OptusFetcher implements ProviderFetcher {
             service.getMetricGroup(CAP_GROUP).setAllocation(parseAmount(capSizeMatcher, 1, false));
         
             
+            // See if there is included data in the plan
+            Pattern includedDataPattern = Pattern.compile("and ([0-9]+)([MG])B of mobile");
+            Matcher includedDataMatcher = includedDataPattern.matcher(planExt);
+            if (includedDataMatcher.find()) {
+                service.getMetricGroup(DATA_PACK_GROUP).setAllocation(parseIncludedData(includedDataMatcher));
+
+            }
+            
             
             Pattern boltOnPattern = Pattern.compile("Bolt-on:\\s+</td>\\s*<td\\s+colspan=\"2\"\\s+align=\"left\">\\s*<table>");
             Matcher boltOnMatcher = boltOnPattern.matcher(usageDoc);
@@ -338,20 +329,18 @@ public class OptusFetcher implements ProviderFetcher {
             m2.region(boltOnMatcher.end(), endOfTable);
 
             Pattern dataPattern = Pattern.compile("([0-9]+)([MG])B of included data");
+            Pattern dataPattern2 = Pattern.compile("MobileInternet[a-zA-Z0-9]+([0-9]+)([MG])B");
             while (m2.find()) {
                 String extra = m2.group(1);
                 
                 plan.addPlanExtra(extra);
                 Matcher m = dataPattern.matcher(extra);
                 if (m.matches()) {
-                    long amt = Long.parseLong(m.group(1));
-                    if (m.group(2).equals("M")) {
-                        amt *= 1000 * 1000;
-                    } else {
-                        amt *= 1000 * 1000 * 1000;
-                    }
-                    Value quota = new Value(amt, Unit.BYTE);
-                    service.getMetricGroup(DATA_PACK_GROUP).setAllocation(quota);
+                    service.getMetricGroup(DATA_PACK_GROUP).setAllocation(parseIncludedData(m));
+                }
+                m = dataPattern2.matcher(extra);
+                if (m.matches()) {
+                    service.getMetricGroup(DATA_PACK_GROUP).setAllocation(parseIncludedData(m));
                 }
             }
             
@@ -500,6 +489,17 @@ public class OptusFetcher implements ProviderFetcher {
     }
 
 
+
+    private Value parseIncludedData(Matcher m) {
+        long amt = Long.parseLong(m.group(1));
+        if (m.group(2).equals("M")) {
+            amt *= 1000 * 1000;
+        } else {
+            amt *= 1000 * 1000 * 1000;
+        }
+        Value quota = new Value(amt, Unit.BYTE);
+        return quota;
+    }
 
     private void ensureGroup(String name, Service service, Unit unit, CounterStyle style, UsageGraphType... types) {
         MetricGroup group = service.getMetricGroup(name);

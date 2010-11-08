@@ -31,7 +31,7 @@ public class ThingWithProperties implements PreferencesSerialisable{
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String,?> getProperties() {
+    public Map<String,String> getProperties() {
         return properties == null ? Collections.EMPTY_MAP : properties;
     }
 

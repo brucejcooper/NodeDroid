@@ -58,12 +58,12 @@ public class PreferencesSerialiser {
          */
         for (Account account: accounts) {
             String accountPrefix = PREFIX_ACCT+ accountNum;
-            editor.putString(accountPrefix + USERNAME, account.getUsername());
-            editor.putString(accountPrefix + PASSWORD, account.getPassword());
-            editor.putString(accountPrefix + PROVIDER, account.getProvider().getName());
-            saveProperties(accountPrefix + PREF, editor, account.getProperties());
-
             try {
+                editor.putString(accountPrefix + USERNAME, account.getUsername());
+                editor.putString(accountPrefix + PASSWORD, account.getPassword());
+                editor.putString(accountPrefix + PROVIDER, account.getProvider().getName());
+                saveProperties(accountPrefix + PREF, editor, account.getProperties());
+
                 int serviceCount = 1;
                 for (Service service : account.getAllServices()) {
                     String servicePrefix = accountPrefix + PREFIX_SERVICE + serviceCount;
@@ -73,7 +73,7 @@ public class PreferencesSerialiser {
                     editor.putString (servicePrefix, obj.toString());
                     serviceCount++;
                 }
-            } catch (JSONException ex) {
+            } catch (Exception ex) {
                 // Thats' okay.  We don't _NEED_ the service information, as it can be regenerated.  Just ignore it.
                 Log.e(NodeUsage.TAG, "Error serialising services", ex);
             }
@@ -130,7 +130,12 @@ public class PreferencesSerialiser {
             Account account = new Account(); // accounts.getAccount(prefs.getString(accountPrefix + USERNAME, ""));
             account.setUsername(prefs.getString(accountPrefix + USERNAME, ""));
             account.setPassword(prefs.getString(accountPrefix + PASSWORD, ""));
-            account.setProvider(ProviderStore.getInstance().getProvider(prefs.getString(accountPrefix + PROVIDER, "internode")));
+            
+            String providerName = prefs.getString(accountPrefix + PROVIDER, "internode");
+            if (providerName.equals("Optus")) {   // Legacy name for Optus Mobile
+                providerName = "Optus Mobile";
+            }
+            account.setProvider(ProviderStore.getInstance().getProvider(providerName));
             account.addProperties(loadProperties(prefs, accountPrefix + PREF));
             
             accounts.add(account);

@@ -27,7 +27,7 @@ public class ProviderStore {
         addProvider(internodeProv);
 
         Provider optusProv = new Provider();
-        optusProv.setName("Optus");
+        optusProv.setName("Optus Mobile");
         optusProv.setBeta(true);
         optusProv.setLogoURL("http://www.optus.com.au/home/assets/images/shared/logo-yes-optus.gif");
         optusProv.setUrl("http://www.optus.com.au/");
@@ -40,6 +40,22 @@ public class ProviderStore {
         ));
         optusProv.setBackgroundResource("optusheader"); //#ffd100
         addProvider(optusProv);
+
+        
+        Provider vodafoneMBBProv = new Provider();
+        vodafoneMBBProv.setName("Vodafone MBB");
+        vodafoneMBBProv.setBeta(true);
+        vodafoneMBBProv.setLogoURL("https://secure.broadband.vodafone.com.au/CRMVOD/img/vodaLogo.jpg");
+        vodafoneMBBProv.setUrl("http://www.vodafone.com.au/");
+        vodafoneMBBProv.setTextColour("#006685");        
+        vodafoneMBBProv.setGraphColors(new GraphColors(0xff000000, 0xff006685, 
+//                0xffFFE77F, 0xff674C99, 0xff807299, 0xff807299, 0xffFFD000
+                0xffFF9D00,
+                0xffF6FF00,  0xffA97E38,
+                0xffFFCE7F, 0xffFFD000          
+        ));
+        vodafoneMBBProv.setBackgroundResource("vodaheader"); //#fe0000
+//        addProvider(vodafoneMBBProv);
 
     }
     

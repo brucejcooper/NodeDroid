@@ -2,7 +2,8 @@
 <resources>
     <string-array name="providers">
         <item>Internode</item>
-        <item>Optus</item>
+        <item>Optus Mobile</item>
+        <item>Vodafone MBB</item>
     </string-array>
 
 </resources>

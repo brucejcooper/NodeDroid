@@ -6,6 +6,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.eightbitcloud.internode.PreferencesSerialiser;
+import com.eightbitcloud.internode.provider.ServiceUpdateDetails;
 
 
 /**
@@ -30,6 +31,26 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
     private ServiceIdentifier identifier;
     private Plan plan;
     private NameMappedList<MetricGroup> metricGroups = new NameMappedList<MetricGroup>();
+
+    
+    public Service createUpdateClone() {
+        Service s = new Service();
+        s.account = account;
+        s.identifier = identifier;
+        s.addProperties(getProperties());
+        s.plan = plan; // Potential for concurrent modification here, if it is done wrong....
+        
+        // Metric groups should always be directly set as part of this....
+        return s;
+    }
+    
+    
+    public void updateFrom(Service u) {
+        this.plan = u.plan;
+        this.metricGroups = u.metricGroups;
+        addProperties(u.getProperties());
+        // Wow, that was easy....
+    }
 
     
     public void setMetricGroups(List<MetricGroup> metricGroups) {
@@ -126,5 +147,7 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
             mg.__setService(this);
         }
     }
+
+
 
 }

@@ -22,6 +22,7 @@
 <string name="userpasstitle">Account details</string>
 <string name="accountsmenuitem">Accounts</string>
 <string name="refreshmenuitem">Refresh</string>
+<string name="settingsmenuitem">Settings</string>
 <string name="historyYear">year</string>
 <string name="historyMonth">month</string>
 <string name="providerTxt">Provider</string>
@@ -38,5 +39,17 @@
 <string name="local_service_label">Service Label</string>
 <string name="local_service_connected">Connected to fetch service</string>
 <string name="local_service_disconnected">Disconnected from fetch service</string>
+
+<string name="debug_preferences">Debug</string>
+<string name="about_preferences">About</string>
+
+<string name="extralogging_preference">Detailed Logging</string>
+<string name="extralogging_preference_summary">Log HTTP, after removing passwords for security, to assist in diagnosing failure to parse. </string>
+<string name="home_page">Home Page</string>
+<string name="home_page_summary">View NodeDroid support homepage</string>
+<string name="send_logs">Send logs to 8-bit cloud</string>
+<string name="send_logs_summary">Email logs of network traffic and errors to 8-bit cloud for diagnosis</string>
+
+
 
 </resources>

@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.eightbitcloud.internode.GraphColors;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
+import com.eightbitcloud.internode.provider.VodafoneMBBFetcher;
 import com.eightbitcloud.internode.provider.internode.InternodeFetcher;
 import com.eightbitcloud.internode.provider.optus.OptusFetcher;
 
@@ -73,12 +74,15 @@ public class Provider {
         if (name.equalsIgnoreCase("internode")) {
             KeyStore ts = (KeyStore) ProviderStore.getInstance().getProvider("internode").getProperty("keyStore");
             return new InternodeFetcher(this,ts);
-        } else if (name.equalsIgnoreCase("optus")) {
+        } else if (name.equalsIgnoreCase("Vodafone MBB")) {
+            return new VodafoneMBBFetcher(this);
+        } else if (name.equalsIgnoreCase("optus mobile")) {
             return new OptusFetcher(this);
         } else
             return null;
     }
     
+
     @Override
     public String toString() {
         return name;

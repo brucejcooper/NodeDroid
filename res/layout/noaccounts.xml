@@ -6,7 +6,7 @@
 	>
 
 	<TextView
-		android:text="Welome to NodeDroid.  This application allows you to check your usage on one or more Internode Accounts.  To get started, please add an Internode account using the button below"
+		android:text="Welome to NodeDroid.  This application allows you to check your usage on one or more telco or ISP accounts.  To get started, please add an account using the button below"
 		android:id="@+id/TextView01" android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:padding="8px"/>

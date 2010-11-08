@@ -29,7 +29,7 @@ public class ServiceView extends FrameLayout {
     private ListView metricGroupView;
     private MetricGroupListAdapter listAdapter;
     LayoutInflater inflater;
-    private MetricGroup selectedMetricGroup;
+    private String selectedMetricGroupName;
     
     UsageGraphView graphView;
     private boolean loading;
@@ -200,19 +200,19 @@ public class ServiceView extends FrameLayout {
     }
     
     public void setSelectedMetricGroup(MetricGroup g) {
-        this.selectedMetricGroup = g;
-        ((TextView)findViewById(R.id.bottomheader)).setText(g == null ? "" : g.getName());
+        this.selectedMetricGroupName = g == null ? null : g.getName();
+        ((TextView)findViewById(R.id.bottomheader)).setText(selectedMetricGroupName == null ? "" : selectedMetricGroupName);
         update();
     }
     
     public MetricGroup getSelectedMetricGroup() {
-        if (selectedMetricGroup == null) {
+        if (selectedMetricGroupName == null) {
             List<MetricGroup> all = service.getAllMetricGroups();
             if (!all.isEmpty()) {
                 setSelectedMetricGroup(all.get(0));
             }
         }
-        return selectedMetricGroup;
+        return selectedMetricGroupName == null ? null : service.getMetricGroup(selectedMetricGroupName);
     }
 
     static class ViewHolder {
