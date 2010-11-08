@@ -1,17 +1,13 @@
 package com.eightbitcloud.internode.provider;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -19,12 +15,9 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.params.CookiePolicy;
 import org.apache.http.client.params.HttpClientParams;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -40,7 +33,6 @@ import com.eightbitcloud.internode.data.MeasuredValue;
 import com.eightbitcloud.internode.data.MetricGroup;
 import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.Provider;
-import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.data.ServiceIdentifier;
 import com.eightbitcloud.internode.data.Unit;
@@ -65,12 +57,12 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
     }
     
     @Override
-    public HttpClient createHttpClient() {
+    public DefaultHttpClient createHttpClient() {
         BasicHttpParams params = new BasicHttpParams();
         params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
         HttpClientParams.setCookiePolicy(params, CookiePolicy.RFC_2109);
 
-        HttpClient client = new DefaultHttpClient(params);
+        DefaultHttpClient client = new DefaultHttpClient(params);
         return client;
     }
     

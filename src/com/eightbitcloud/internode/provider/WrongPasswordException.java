@@ -6,6 +6,6 @@ import java.io.IOException;
 public class WrongPasswordException extends IOException {
 
     public WrongPasswordException() {
-        super("Authorisation Required");
+        super("username or password incorrect");
     }
 }

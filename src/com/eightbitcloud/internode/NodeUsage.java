@@ -515,7 +515,6 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         Log.e(TAG, "Service " + service + " had error while refreshing", ex);
         if (isDisplayPortrait()) {
             ServiceView sv = getViewForService(service); 
-            sv.setService(service);
             sv.setLoading(false);
         } else {
             updateLandscapeView();

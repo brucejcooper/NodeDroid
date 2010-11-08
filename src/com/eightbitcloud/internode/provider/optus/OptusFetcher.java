@@ -19,13 +19,9 @@ import java.util.regex.Pattern;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpRequestBase;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
@@ -65,6 +61,15 @@ public class OptusFetcher extends AbstractFetcher {
 
     public TimeZone melbourneTZ;
 
+//    @Override
+//    protected DefaultHttpClient createHttpClient() {
+//        // Disable Redirect following, because we want to know where we are being redirected to when logging in.
+//        final HttpParams params = new BasicHttpParams();
+//        HttpClientParams.setRedirecting(params, false);
+//        params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
+//        DefaultHttpClient client = new DefaultHttpClient(params);
+//        return client;
+//    }
 
     
     public OptusFetcher(Provider provider) {
@@ -73,12 +78,38 @@ public class OptusFetcher extends AbstractFetcher {
         rolloverFormatter.setTimeZone(melbourneTZ);
     }
     
-    private String login(Account account) throws AccountUpdateException, InterruptedException {
+//    private HttpResponse handleRedirect(HttpResponse resp) throws ClientProtocolException, InterruptedException, IOException {
+//        return handleRedirect(resp, 1);
+//    }
+//    private HttpResponse handleRedirect(HttpResponse resp, int count) throws ClientProtocolException, InterruptedException, IOException {
+//        if (count > 10) {
+//            throw new IOException("too many redirects");
+//        }
+//        String newLocation = resp.getFirstHeader("Location").getValue();
+//        Log.d(NodeUsage.TAG, "New location is " + newLocation);
+//        resp.getEntity().consumeContent();
+//        resp = executeThenCheckIfInterrupted(new HttpGet(newLocation)); 
+//        
+//        switch (resp.getStatusLine().getStatusCode()) {
+//            case HttpStatus.SC_MOVED_PERMANENTLY:
+//            case HttpStatus.SC_MOVED_TEMPORARILY:
+//                return handleRedirect(resp, count+1);
+//            case HttpStatus.SC_OK:
+//                return resp;
+//            default:
+//                throw new IOException("Expected OK Response, but got " + resp.getStatusLine());
+//        }
+//    }
+    
+    private String login(Account account) throws AccountUpdateException, InterruptedException, WrongPasswordException {
         try {
             HttpGet loginPage = new HttpGet("http://www.optus.com.au/login");
             HttpResponse resp = executeThenCheckIfInterrupted(loginPage);
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
-                throw new IOException("Expected OK Response");
+                throw new IOException("Expected OK Response, got " + resp.getStatusLine().getStatusCode());
+//            resp = handleRedirect(resp);
+            
+            
             String body = EntityUtils.toString(resp.getEntity());
             int pos = body.indexOf(SMAGENTKEY);
             if (pos == -1) {
@@ -106,25 +137,35 @@ public class OptusFetcher extends AbstractFetcher {
             loginPost.setEntity(new UrlEncodedFormEntity(formparams, "UTF-8"));
             resp = executeThenCheckIfInterrupted(loginPost, account.getUsername(), account.getPassword());
             
-            Log.d(NodeUsage.TAG, "After Executing login, URL is " + loginPost.getURI());
-        
             if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
-                throw new IOException("Expected OK from login: " + resp.getStatusLine());
+                throw new IOException("Expected TEMP Redirect from login: " + resp.getStatusLine());
+//            String newLocation = resp.getFirstHeader("Location").getValue();
+//            Log.d(NodeUsage.TAG, "New location is " + newLocation);
+            
+//            resp = handleRedirect(resp); 
+            
             
             String loginResult = EntityUtils.toString(resp.getEntity());
+            
+            // Were we redirected back to the login page?  Test by looking for the error message.
+            if (loginResult.contains("<p class='error'>You have entered an invalid username or password.</p>")) {
+                throw new WrongPasswordException();
+            }
             return loginResult;
+        } catch (WrongPasswordException ex) {
+            throw ex;
         } catch (IOException ex) {
             throw new AccountUpdateException("Error logging in", ex);
    
         }
     }
 
-    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException {
+    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException, WrongPasswordException {
+        List<ServiceUpdateDetails> result = new ArrayList<ServiceUpdateDetails>();
+        
+        String loginResult = login(account);
+        
         try {
-            
-            List<ServiceUpdateDetails> result = new ArrayList<ServiceUpdateDetails>();
-            
-            String loginResult = login(account);
             
             
             Pattern accountNumberPattern = Pattern.compile("<div\\s+class=\"prodcut_number\">([^<]*)</div>");
@@ -170,7 +211,6 @@ public class OptusFetcher extends AbstractFetcher {
                     throw new IOException("Expected to find url for usage");
                 String usageURL = prependHost(usageURLMatcher.group(1));
                 
-                
                 ServiceIdentifier serviceIdentifier = new ServiceIdentifier(provider.getName(), phoneNumber);
                 ServiceUpdateDetails service = new ServiceUpdateDetails(serviceIdentifier);
                 service.setProperty(USAGE_URL, usageURL);
@@ -179,7 +219,6 @@ public class OptusFetcher extends AbstractFetcher {
             }
             
             return result;
-            
         } catch (IOException ex) {
             throw new AccountUpdateException("Error logging in", ex);
         }

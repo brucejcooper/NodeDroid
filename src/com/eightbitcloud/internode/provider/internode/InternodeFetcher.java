@@ -17,7 +17,6 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.Scheme;
@@ -80,7 +79,7 @@ public class InternodeFetcher extends AbstractFetcher {
     }
 
     @Override
-    public HttpClient createHttpClient() {
+    public DefaultHttpClient createHttpClient() {
         try {
             SSLSocketFactory sf = new SSLSocketFactory(trustStore);
             Scheme httpsScheme = new Scheme("https", sf, 443);
@@ -260,7 +259,7 @@ public class InternodeFetcher extends AbstractFetcher {
 
 
 
-    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException {
+    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, WrongPasswordException {
         try {
             Element response = request(baseURL, account);
             NodeList services = XMLTools.getNode(XMLTools.getAPINode(response), "services").getElementsByTagName("service");
@@ -284,6 +283,8 @@ public class InternodeFetcher extends AbstractFetcher {
             
             return result;
             
+        } catch ( WrongPasswordException ex) {
+            throw ex;
         } catch (final Exception ex) {
             throw new AccountUpdateException("Error loading services", ex);
         }

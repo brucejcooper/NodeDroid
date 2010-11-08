@@ -11,6 +11,7 @@ import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.HttpProtocolParams;
@@ -25,14 +26,14 @@ public abstract class AbstractFetcher implements ProviderFetcher {
     private static final int MAX_LOG_LENGTH = 4000;
     protected Provider provider;
     protected boolean logTraffic = false;
-    private HttpClient httpClient;
+    private DefaultHttpClient httpClient;
     
     public AbstractFetcher(Provider provider) {
         this.provider = provider;
     }
 
-    protected HttpClient createHttpClient() {
-        HttpClient client = new DefaultHttpClient();
+    protected DefaultHttpClient createHttpClient() {
+        DefaultHttpClient client = new DefaultHttpClient();
         client.getParams().setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
         return client;
     }
@@ -42,6 +43,21 @@ public abstract class AbstractFetcher implements ProviderFetcher {
         logTraffic = val;
     }
 
+    
+    public String getCookie(String name) {
+        if (httpClient == null) {
+            return null;
+        }
+        
+        for (Cookie c: httpClient.getCookieStore().getCookies()) {
+            Log.d(NodeUsage.TAG, "Cookie is " + c);
+            if (c.getName().equals(name)) {
+                return c.getValue();
+            }
+                
+        }
+        return null;
+    }
     
     protected HttpResponse executeThenCheckIfInterrupted(HttpRequestBase m, String... logValueToRedact) throws InterruptedException, ClientProtocolException,
             IOException {
