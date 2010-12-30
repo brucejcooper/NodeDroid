@@ -65,9 +65,9 @@ public class OptusFetcher extends AbstractFetcher {
 
 
     private Pattern[] boltOnDataPatterns = new Pattern[] {
-            Pattern.compile("([0-9]+)([MG])B of included data", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("MobileInternet[a-zA-Z0-9]+([0-9]+)([MG])B", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("([0-9]+)([MG])B incl Business Data", Pattern.CASE_INSENSITIVE)
+            Pattern.compile("([0-9]+(\\.[0-9]+)?)([MG])B of included data", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("MobileInternet[a-zA-Z0-9]+([0-9]+(\\.[0-9]+)?)([MG])B", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("([0-9]+(\\.[0-9]+)?)([MG])B incl Business Data", Pattern.CASE_INSENSITIVE)
     };
 
 
@@ -368,7 +368,7 @@ public class OptusFetcher extends AbstractFetcher {
         
             
             // See if there is included data in the plan
-            Pattern includedDataPattern = Pattern.compile("and ([0-9]+)([MG])B of mobile");
+            Pattern includedDataPattern = Pattern.compile("and ([0-9]+(\\.[0-9]+)?)([MG])B of mobile");
             Matcher includedDataMatcher = includedDataPattern.matcher(planExt);
             if (includedDataMatcher.find()) {
                 service.getMetricGroup(DATA_PACK_GROUP).setAllocation(parseIncludedData(includedDataMatcher));
@@ -563,13 +563,13 @@ public class OptusFetcher extends AbstractFetcher {
 
 
     private Value parseIncludedData(Matcher m) {
-        long amt = Long.parseLong(m.group(1));
-        if (m.group(2).equals("M")) {
+        double amt = Double.parseDouble(m.group(1));
+        if (m.group(3).equals("M")) {
             amt *= 1000 * 1000;
         } else {
             amt *= 1000 * 1000 * 1000;
         }
-        Value quota = new Value(amt, Unit.BYTE);
+        Value quota = new Value((long)amt, Unit.BYTE);
         return quota;
     }
 
