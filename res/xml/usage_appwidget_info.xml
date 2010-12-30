@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<appwidget-provider
+  xmlns:android="http://schemas.android.com/apk/res/android"     
+    android:minWidth="294dp"
+    android:minHeight="72dp"
+    android:updatePeriodMillis="60000"
+    android:initialLayout="@layout/usagewidget"
+    android:configure="com.eightbitcloud.internode.NodeDroidWidgetConfigure" >
+  
+</appwidget-provider>

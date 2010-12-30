@@ -23,6 +23,7 @@ import com.eightbitcloud.internode.data.MetricGroup;
 import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
+import com.eightbitcloud.internode.util.DateTools;
 
 public class UsageGraphView extends LinearLayout {
     /**
@@ -127,6 +128,8 @@ public class UsageGraphView extends LinearLayout {
             case YEARLY_USAGE:
                 generateYearly();
                 break;
+            case ALL_USAGE:
+                generateAll();
             }
             
             
@@ -233,39 +236,82 @@ public class UsageGraphView extends LinearLayout {
     }
 
     
+    public Date[] getDateBounds(List<MeasuredValue> values) {
+        Date lastDate = null;
+        Date firstDate = null;
+        
+        for (MeasuredValue v: values) {
+            if (v.getUsageRecords().size() > 0) {
+                Date last = v.getUsageRecords().lastKey();
+                if (lastDate == null) {
+                    lastDate = last;
+                } else {
+                    if (last.after(lastDate))
+                        lastDate = last;
+                }
+                
+                Date first = v.getUsageRecords().firstKey();
+                if (firstDate == null) {
+                    firstDate = first;
+                } else {
+                    if (first.before(firstDate)) {
+                        firstDate = first;
+                    }
+                }
+            }
+        }
+        return new Date[] { firstDate, lastDate};
+        
+    }
     
-//
-//    private void generateMonthly() {
-//        
-//        
-//        Calendar cal = Calendar.getInstance();
-//        cal.setTime(new Date());
-//        cal.add(Calendar.MONTH, -1);
-//        cal.set(Calendar.HOUR_OF_DAY, 23);
-//        cal.set(Calendar.MINUTE, 59);
-//        cal.set(Calendar.SECOND, 59);
-//        cal.set(Calendar.MILLISECOND, 999);
-//        
-//        SortedMap<Date, Value[]> graphData = new TreeMap<Date,Value[]>();
-//        int index = 0;
-//        int count = group.getComponents().size();
-//        for (MeasuredValue mv: group.getComponents()) {
-//            SortedMap<Date, UsageRecord> usage = mv.getUsageRecords();
-//            SortedMap<Date, UsageRecord> lastMonth = usage.tailMap(cal.getTime());
-//            for (Map.Entry<Date,UsageRecord> e: lastMonth.entrySet()) {
-//                Value[] entries = graphData.get(e.getKey());
-//                if (entries == null) {
-//                    entries = new Value[count];
-//                    graphData.put(e.getKey(), entries);
-//                }
-//                entries[index] = e.getValue().getAmount();
-//            }
-//            index++;
-//        }
-//
-//        graph.setData(new GraphData<Date,Value>(graphData, GraphStyle.BAR, DateKeyFormatter.MONTH_FORMATTER));
-//        graph.thresholdValue = null;
-//    }
+    private void generateAll() {
+        SortedMap<Date, Value[]> results = new TreeMap<Date, Value[]>();
+        
+        
+        List<MeasuredValue> values = getOrderedValues();
+        Date[] dateBounds = getDateBounds(values);
+        
+        if (dateBounds[0] != null) {
+            Calendar cal = Calendar.getInstance(); // TODO make it respect the TZ
+            Date periodStart = DateTools.ensureMidnight(dateBounds[0]);
+            cal.setTime(DateTools.ensureMidnight(dateBounds[1]));   // TODO there is shared code here between this and generateMonthly (and yearly for that matter)  Generalise it
+            cal.add(Calendar.DAY_OF_MONTH, 1);
+            Date terminalDate = cal.getTime();
+            
+            cal.setTime(periodStart);
+            int count = group.getComponents().size();
+            
+            while (periodStart.before(terminalDate)) {
+                cal.setTime(periodStart);
+                cal.add(Calendar.DAY_OF_MONTH, 1);
+                Date periodEnd = cal.getTime();
+
+                int index = 0;
+                for (MeasuredValue mv: values) {
+                    SortedMap<Date, UsageRecord> usage = mv.getUsageRecords();
+                    Value sum = new Value(0, mv.getUnits());
+                    SortedMap<Date, UsageRecord> monthEntries = usage.subMap(periodStart, periodEnd);
+                    for (UsageRecord dayValue : monthEntries.values()) {
+                        sum = sum.plus(dayValue.getAmount());
+                    }
+
+                    Value[] entries = results.get(periodStart);
+                    if (entries == null) {
+                        entries = new Value[count];
+                        results.put(periodStart, entries);
+                    }
+                    entries[index] = sum;
+                    index++;
+                }
+                periodStart = periodEnd;
+            }
+            graph.setData(new GraphData<Date,Value>(results, GraphStyle.BAR, DateKeyFormatter.MONTH_FORMATTER));
+            graph.thresholdValue = null;
+        }        
+    }
+
+    
+    
 
     private void generateBreakdown() {
         List<MeasuredValue> values = getOrderedValues();

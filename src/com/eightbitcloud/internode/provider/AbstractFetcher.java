@@ -1,41 +1,105 @@
 package com.eightbitcloud.internode.provider;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.URLDecoder;
+import java.security.KeyStore;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.SingleClientConnManager;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.util.EntityUtils;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.eightbitcloud.internode.NodeUsage;
 import com.eightbitcloud.internode.data.Provider;
 
 public abstract class AbstractFetcher implements ProviderFetcher {
-    private static final int MAX_LOG_LENGTH = 4000;
     protected Provider provider;
     protected boolean logTraffic = false;
     private DefaultHttpClient httpClient;
+    private Context context;
     
-    public AbstractFetcher(Provider provider) {
+    
+    private ThreadLocal<PrintWriter> logWriter = new ThreadLocal<PrintWriter>() {
+        @Override
+        protected synchronized PrintWriter initialValue() {
+            DateFormat f = new SimpleDateFormat("yyyyMMddHHmmss");
+            try {
+                return  new PrintWriter(new OutputStreamWriter(context.openFileOutput(
+                        "FetcherLog-" + provider.getName().replace(' ', '_') + '-' + f.format(new Date()) + '-' + Thread.currentThread().getId() + ".txt", Context.MODE_APPEND)));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    };
+
+    
+    public AbstractFetcher(Provider provider, Context ctx) {
         this.provider = provider;
+        this.context = ctx;
+    }
+    
+    protected HttpParams createHttpParams() {
+        HttpParams params = new BasicHttpParams();
+        params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
+        return params;
+    }
+    
+    protected SchemeRegistry createSchemeRegistry() {
+        try {
+            SchemeRegistry sr = new SchemeRegistry();
+            sr.register(new Scheme("http", new PlainSocketFactory(), 80));
+    
+            SSLSocketFactory sf = SSLSocketFactory.getSocketFactory();
+            Scheme httpsScheme = new Scheme("https", sf, 443);
+            sr.register(httpsScheme);
+            
+            return sr;
+            
+        } catch (Exception ex) {
+            // Unlikely to happen
+            return null;
+        }
+
     }
 
     protected DefaultHttpClient createHttpClient() {
-        DefaultHttpClient client = new DefaultHttpClient();
-        client.getParams().setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
-        return client;
+//        try {
+            HttpParams params = createHttpParams();
+            ClientConnectionManager cm = new SingleClientConnManager(params, createSchemeRegistry());
+            params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
+            return  new DefaultHttpClient(cm, params);
+//        } catch (Exception e) {
+//            // This is pretty unlikely
+//            e.printStackTrace();
+//            return null;
+//        }
     }
     
 
@@ -90,7 +154,7 @@ public abstract class AbstractFetcher implements ProviderFetcher {
             
         }
         HttpResponse resp = httpClient.execute(m);
-        if (Thread.currentThread().isInterrupted()) {
+        if (Thread.interrupted()) {
             throw new InterruptedException();
         }
         
@@ -112,14 +176,24 @@ public abstract class AbstractFetcher implements ProviderFetcher {
     }
 
     
-    private void logTraffic(String x) {
-        if (x.length() > MAX_LOG_LENGTH) {
-            logTraffic(x.substring(0, MAX_LOG_LENGTH));
-            logTraffic(x.substring(MAX_LOG_LENGTH));
-        } else {
-            Log.d(NodeUsage.TAG, "HTTP" + Thread.currentThread().getId() + ": " + x);
+    private void logTraffic(String x) throws IOException {
+        
+        logWriter.get().println(x);
+//        if (x.length() > MAX_LOG_LENGTH) {
+//            logTraffic(x.substring(0, MAX_LOG_LENGTH));
+//            logTraffic(x.substring(MAX_LOG_LENGTH));
+//        } else {
+//            Log.d(NodeUsage.TAG, "HTTP" + Thread.currentThread().getId() + ": " + x);
+//        }
+    }
+ 
+    
+    public void cleanup() {
+        if (logTraffic) {
+            logWriter.get().close();
         }
     }
+
     
 }
 

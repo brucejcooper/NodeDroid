@@ -16,18 +16,22 @@
 
 package com.eightbitcloud.internode;
 
-import java.io.BufferedReader;
+import java.io.Externalizable;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.InputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceClickListener;
@@ -78,45 +82,89 @@ public class PreferencesActivity extends PreferenceActivity {
     }
 
     public void sendLogs() {
+        if (!Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) { 
+            Toast.makeText(this, "External media must be mounted to gather and send logs", Toast.LENGTH_LONG).show();
+            return;
+        }
+        
         Toast.makeText(this, "Preparing logs. Email app will appear soon", Toast.LENGTH_SHORT).show();
         
         try {
-            final File tempFile = File.createTempFile("NodeDroid", ".dump");
-            tempFile.deleteOnExit();
-            final Process p = Runtime.getRuntime().exec(new String[] {"/system/bin/logcat", "-d", "-f", tempFile.getAbsolutePath(), "-v", "threadtime", "NodeDroid:V", "*:S"});
+            final Process p = Runtime.getRuntime().exec(new String[] {"/system/bin/logcat", "-d",  "-v", "threadtime", "NodeDroid:V", "*:S"});
             final Handler mHandler = new Handler();
     
-            
             new Thread(new Runnable() {
                 Exception ex = null;
-                public void run() {
-                    try {
-                        p.waitFor();
-                    } catch (Exception ex ) {
-                        this.ex = ex;
+                
+                private void dump(String name, InputStream in, ZipOutputStream out) throws IOException {
+                    out.putNextEntry(new ZipEntry(name));
+                    byte[] buf = new byte[4096];
+                    int amt;
+                    while ((amt = in.read(buf)) != -1) {
+                        out.write(buf, 0, amt);
                     }
-    
-                    mHandler.post(new Runnable() {
-    
-                        public void run() {
-                            if (ex != null) {
-                                Toast t = Toast.makeText(PreferencesActivity.this, "Error Preparing logs: " + ex, Toast.LENGTH_LONG);
-                                t.show();
-                            } else {
-                                Intent sendIntent = new Intent(Intent.ACTION_SEND);
-                                // Add attributes to the intent
-                                sendIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                                sendIntent.putExtra(Intent.EXTRA_SUBJECT, "Log dump from NodeDroid");
-                                sendIntent.putExtra(Intent.EXTRA_EMAIL, new String[] { "android-logs@8bitcloud.com" });
-                                sendIntent.putExtra(Intent.EXTRA_TEXT, "Body of email");
-                                sendIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(tempFile));
-                                sendIntent.setType("vnd.android.cursor.dir/email");
+                    in.close();
+                    out.closeEntry();
+                }
+                
+                
+                public void run() {
+                    
+                    try {
                         
-                                startActivity(Intent.createChooser(sendIntent, "Email:"));
+                        final File dumpFile = NodeUsage.getDumpFile();
+                        dumpFile.getParentFile().mkdirs();
+                        Log.d(NodeUsage.TAG, "Dump file is " + dumpFile);
+                        
+                        ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(dumpFile));
+                        zos.setMethod(ZipOutputStream.DEFLATED);
+                        
+                        // First, write the log.
+                        dump("log.txt", p.getInputStream(), zos);
+                        
+                        // Now 
+                        File[] dumps = getFilesDir().listFiles(new FilenameFilter() {
+                            public boolean accept(File dir, String filename) {
+                                return filename.startsWith("FetcherLog-");
                             }
-                        }
+                        });
                         
-                    });
+                        for (File f: dumps) {
+                            dump(f.getName(), new FileInputStream(f), zos);
+                            f.delete();
+                        }
+                        zos.finish();
+                        zos.close();
+                    
+                        mHandler.post(new Runnable() {
+        
+                            public void run() {
+                                if (ex != null) {
+                                    Toast t = Toast.makeText(PreferencesActivity.this, "Error Preparing logs: " + ex, Toast.LENGTH_LONG);
+                                    t.show();
+                                } else {
+                                    Intent sendIntent = new Intent(Intent.ACTION_SEND);
+                                    // Add attributes to the intent
+                                    sendIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                    sendIntent.putExtra(Intent.EXTRA_SUBJECT, "Log dump from NodeDroid");
+                                    sendIntent.putExtra(Intent.EXTRA_EMAIL, new String[] { "android-logs@8bitcloud.com" });
+                                    sendIntent.putExtra(Intent.EXTRA_TEXT, "");
+                                    sendIntent.setType("application/zip");
+                                    sendIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(dumpFile));
+                            
+                                    startActivity(Intent.createChooser(sendIntent, "Email:"));
+                                }
+                            }
+                            
+                        });
+                    } catch (final IOException ex) {
+                        mHandler.post(new Runnable() {
+                            public void run() {
+                                Toast.makeText(PreferencesActivity.this, "Errror Collecting logs: " + ex, Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        ex.printStackTrace();
+                    }
                 }
             }).start();
             

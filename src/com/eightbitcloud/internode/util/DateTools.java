@@ -32,7 +32,9 @@ public class DateTools {
     }
     
 
-    
+    public static Date ensureMidnight(Date d) {
+        return ensureMidnight(d, TimeZone.getDefault());
+    }    
     
     // Make sure the Time is set to Midnight, Adelaide Time
     public static Date ensureMidnight(Date d, TimeZone tz) {
@@ -45,6 +47,7 @@ public class DateTools {
         
         return c.getTime();
     }
+    
     
     public static Date parseAdelaideDate(String dt) throws ParseException {
         Date parsed = DATE_PARSER_FORMAT.parse(dt);

@@ -4,11 +4,13 @@ import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Map;
 
+import android.content.Context;
+
 import com.eightbitcloud.internode.GraphColors;
+import com.eightbitcloud.internode.provider.InternodeFetcher;
+import com.eightbitcloud.internode.provider.OptusFetcher;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
 import com.eightbitcloud.internode.provider.VodafoneMBBFetcher;
-import com.eightbitcloud.internode.provider.internode.InternodeFetcher;
-import com.eightbitcloud.internode.provider.optus.OptusFetcher;
 
 public class Provider {
     private String name;
@@ -70,14 +72,14 @@ public class Provider {
         this.logoURL = logoURL;
     }
     
-    public ProviderFetcher createFetcher() {
+    public ProviderFetcher createFetcher(Context ctx) {
         if (name.equalsIgnoreCase("internode")) {
             KeyStore ts = (KeyStore) ProviderStore.getInstance().getProvider("internode").getProperty("keyStore");
-            return new InternodeFetcher(this,ts);
+            return new InternodeFetcher(this, ctx, ts);
         } else if (name.equalsIgnoreCase("Vodafone MBB")) {
-            return new VodafoneMBBFetcher(this);
+            return new VodafoneMBBFetcher(this, ctx);
         } else if (name.equalsIgnoreCase("optus mobile")) {
-            return new OptusFetcher(this);
+            return new OptusFetcher(this, ctx);
         } else
             return null;
     }

@@ -1,9 +1,11 @@
 package com.eightbitcloud.internode;
 
+import java.io.File;
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Timer;
 
 import android.app.Activity;
 import android.content.Context;
@@ -11,7 +13,9 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -29,10 +33,12 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.admob.android.ads.AdManager;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.data.ServiceIdentifier;
+import com.eightbitcloud.internode.data.UpdateStatus;
 
 public class NodeUsage extends Activity implements AccountUpdateListener {
     public static final String TAG = "NodeDroid";
@@ -56,6 +62,8 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     private LayoutInflater inflater;
     
+    
+    private Timer clockTickTimer;
     
 //    private boolean mIsBound;
 
@@ -186,9 +194,9 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         }
 
         
-//        AdManager.setTestDevices( new String[] {                 
-//                AdManager.TEST_EMULATOR             // Android emulator
-//        } );  
+        AdManager.setTestDevices( new String[] {                 
+                AdManager.TEST_EMULATOR             // Android emulator
+        } );  
 
         
 //        AdView ad = (AdView) findViewById(R.id.ad);
@@ -303,13 +311,12 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         }
     }
     
-    public ServiceView getViewForService(Service service) {
-        ServiceView view = serviceViews.get(service.getIdentifier());
+    public ServiceView getViewForService(ServiceIdentifier service) {
+        ServiceView view = serviceViews.get(service);
         if (view == null) {
             view = new ServiceView(this, null, internodeFont);
-            view.setService(service);
             addServiceView(view);
-            serviceViews.put(service.getIdentifier(), view);
+            serviceViews.put(service, view);
         }
         return view;
     }
@@ -335,7 +342,29 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         if (isDisplayPortrait()) {
             updatePortraitAccountsView();
         }
+        
     }
+    
+    long nextClockUpdate;
+    Runnable clockUpdateRunnable = new Runnable() {
+        public void run() {
+            for (ServiceView s: serviceViews.values()) {
+                s.refreshLastUpdated();
+            }
+            
+            nextClockUpdate = SystemClock.uptimeMillis() + 30 * 1000;
+            handler.postAtTime(clockUpdateRunnable, nextClockUpdate);
+        }
+    };
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        
+        nextClockUpdate = SystemClock.uptimeMillis() + 30 * 1000;
+        handler.postAtTime(clockUpdateRunnable, nextClockUpdate);
+    }
+    
     
     public void updatePortraitAccountsView() {
 
@@ -356,7 +385,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             int countServices = 0;
             for (Account acct: dataFetcher.accounts) {
                 for (Service service: acct.getAllServices()) {
-                    getViewForService(service);
+                    getViewForService(service.getIdentifier()).setService(service);
                     countServices++;
                 }
             }
@@ -437,6 +466,12 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
                 Toast.makeText(this, "Refreshing Usage", Toast.LENGTH_SHORT).show();
                 dataFetcher.updateAccounts();
                 return true;
+//            case R.id.browserscrapermenuitem:
+//                intent = new Intent(this, BrowserScraperActivity.class).setAction(Intent.ACTION_VIEW);
+//                dataFetcher.cancelRunningFetches();
+//                dataFetcher.saveState();
+//                startActivityForResult(intent, 0);
+//                return true;
             case R.id.settingsMenuItem:
                 intent = new Intent(this, PreferencesActivity.class).setAction(Intent.ACTION_VIEW);
                 dataFetcher.cancelRunningFetches();
@@ -450,9 +485,16 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
 
     public void reportFatalException(Exception ex) {
+        reportFatalException("Error", ex);
+    }
+    public void reportFatalException(String msg, Exception ex) {
         Log.i(TAG, "Making TOAST for error on thread: " + Thread.currentThread());
-        Toast t = Toast.makeText(this, "Error: " + ex.getMessage(), Toast.LENGTH_LONG);
+        Toast t = Toast.makeText(this, msg + ": " + ex.getMessage(), Toast.LENGTH_LONG);
         t.show();
+    }
+    
+    public static File getDumpFile() {
+        return new File(Environment.getExternalStorageDirectory(), ".nodedroid/NodeDroidDump.zip");
     }
 
     @Override
@@ -463,6 +505,11 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
             Log.i(TAG, "Shutting down datafetcher");
             dataFetcher.shutdown();
             dataFetcher = null;
+
+            File dumpFile = getDumpFile();
+            if (dumpFile.exists()) {
+                dumpFile.delete();
+            }
         }
         
         super.onDestroy();
@@ -474,6 +521,15 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     
     public void startingServiceFetchForAccount(Account account) {
         Log.i(TAG, "Account " + account + " loading services");
+        for (Service s: account.getAllServices()) {
+//            Log.i(TAG, "Setting status of " + s + " to PENDING");
+            s.setUpdateStatus(UpdateStatus.PENDING_UPDATE);
+            
+            // TODO there appears to be a race condition between the updates coming through and this view being fully initialised.  To avoid a NullPtrEx, we guard here, but it is not an ideal solution
+            if (scroller != null) {
+                getViewForService(s.getIdentifier()).setService(s);
+            }
+        }
         // TODO Auto-generated method stub
         
     }
@@ -486,14 +542,27 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     public void errorUpdatingServices(Account account, Exception ex) {
         Log.e(TAG, "Account " + account + " got error while updating services", ex);
-        reportFatalException(ex);
+        if (!(ex instanceof InterruptedException)) {
+            reportFatalException(ex);
+        }
+        for (Service s: account.getAllServices()) {
+            s.setUpdateStatus(UpdateStatus.IDLE);
+            if (isDisplayPortrait()) {
+                if (scroller != null) {
+                    getViewForService(s.getIdentifier()).setService(s);
+                }
+            }
+        }
         updateLandscapeView();
     }
 
     public void serviceUpdateStarted(Service service) {
         Log.i(TAG, "Service " + service + " beginning update");
+        service.setUpdateStatus(UpdateStatus.UPDATING);
         if (isDisplayPortrait()) {
-            getViewForService(service).setLoading(true);
+            if (scroller != null) {
+                getViewForService(service.getIdentifier()).setService(service);
+            }
         } else {
             updateLandscapeView();
         }
@@ -502,10 +571,12 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     public void serviceUpdated(Service service) {
         Log.i(TAG, "Service " + service + " finished updating");
+        service.setUpdateStatus(UpdateStatus.IDLE);
         if (isDisplayPortrait()) {
-            ServiceView sv = getViewForService(service); 
-            sv.setService(service);
-            sv.setLoading(false);
+            if (scroller != null) {
+                ServiceView sv = getViewForService(service.getIdentifier()); 
+                sv.setService(service);
+            }
         } else {
             updateLandscapeView();
         }
@@ -513,13 +584,16 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     public void errorUpdatingService(Service service, Exception ex) {
         Log.e(TAG, "Service " + service + " had error while refreshing", ex);
+        service.setUpdateStatus(UpdateStatus.IDLE);
         if (isDisplayPortrait()) {
-            ServiceView sv = getViewForService(service); 
-            sv.setLoading(false);
+            ServiceView sv = getViewForService(service.getIdentifier()); 
+            sv.setService(service);
         } else {
             updateLandscapeView();
         }
-        reportFatalException(ex);
+        if (!(ex instanceof InterruptedException)) {
+            reportFatalException("Error updating " + service.getIdentifier(), ex);
+        }
     }
 
     

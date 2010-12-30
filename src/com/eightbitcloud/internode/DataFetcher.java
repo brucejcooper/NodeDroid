@@ -2,17 +2,16 @@
 package com.eightbitcloud.internode;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -20,7 +19,6 @@ import android.util.Log;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.data.ServiceIdentifier;
-import com.eightbitcloud.internode.provider.AccountUpdateException;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
 import com.eightbitcloud.internode.provider.ServiceUpdateDetails;
 
@@ -46,7 +44,7 @@ public class DataFetcher  {
     
 //    BackgroundSaver backgroundSaver;
 
-    ThreadPoolExecutor threadRunner = new ThreadPoolExecutor(0, 5, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+    List<AccountUpdater> runningTasks = Collections.synchronizedList(new ArrayList<AccountUpdater>());
     
     
     boolean ignoringPreferenceUpdates = false;
@@ -118,17 +116,20 @@ public class DataFetcher  {
     }
 
     
-    private void startFetch(Runnable r) {
-        threadRunner.execute(new FutureTask<Void>(r, null));
-    }
     
     public void cancelRunningFetches() {
-        for (Runnable r: threadRunner.getQueue()) {
-            @SuppressWarnings("unchecked")
-            FutureTask<Void> ft = (FutureTask<Void>) r;
-            ft.cancel(true);
+        
+        Log.i(NodeUsage.TAG, "Canceling Running fetches.  There are " + runningTasks.size() + " active tasks");
+        synchronized (runningTasks) {
+            for (AccountUpdater a: runningTasks) {
+                a.cancel(true);
+            }
+            runningTasks.clear();
         }
-        threadRunner.purge();
+    }
+    
+    public void notifyTaskFinished(AccountUpdater t) {
+        runningTasks.remove(t);
     }
     
     
@@ -209,96 +210,116 @@ public class DataFetcher  {
         Log.i(NodeUsage.TAG, "Updating Services");
         cancelRunningFetches();
         for (Account account: accounts) {
-            startFetch(new ServiceFetcher(account));
+            AccountUpdater u = new AccountUpdater(account);
+            runningTasks.add(u);
+            u.execute(account);
         }
     }
     
-    private abstract class UpdateTask<T,Y> implements Runnable {
-        protected T target;
-        
-        public UpdateTask(T target) {
-            this.target = target;
-        }
-        
-//        public T getTarget() {
-//            return target;
-//        }
-        
-        public void run() {
-            try {
-                handler.post(new Runnable() {
-                    public void run() {
-                        before();
-                    }
-                });
-                final Y val = execute();
-//                backgroundSaver.scheduleSave();
-                handler.post(new Runnable() {
-                    public void run() {
-                        try {
-                            after(val);
-                        } catch (final Exception ex) {
-                            handler.post(new Runnable() {
-                                public void run() {
-                                    error(ex);
-                                }
-                            });
-                        }
-
-                    }
-                });
-            } catch (final InterruptedException ex) {
-                // Thats okay.  Its fine even!!!
-                // TODO does this need to notify that it was cancelled, therefore turning off downloading notifications and the like?
-            } catch (final Exception ex) {
-                handler.post(new Runnable() {
-                    public void run() {
-                        error(ex);
-                    }
-                });
-            }
-        }
-        
-        public abstract void before();
-        public abstract Y execute() throws Exception;
-        public abstract void after(Y val) throws AccountUpdateException;
-        public abstract void error(Exception ex);
-    }
-
-    private class ServiceFetcher extends UpdateTask<Account, List<ServiceUpdateDetails>> {
+    private class AccountUpdater extends AsyncTask<Account, Notification, Void> {
+        private Account account;
         private ProviderFetcher fetcher;
 
-        public ServiceFetcher(Account account) {
-            super(account);
+        public AccountUpdater(Account acct) {
+            this.account = acct;
         }
 
         @Override
-        public void before() {
-            for (AccountUpdateListener l : listeners) {
-                l.startingServiceFetchForAccount(target);
+        protected Void doInBackground(Account... params) {
+            fetcher = account.getProvider().createFetcher(context);
+            try {
+                boolean extraLogging = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("performExtraLogging", false);
+                fetcher.setLogTraffic(extraLogging);
+                
+                try {
+                    publishProgress(new Notification(Event.START_ACCOUNT_UPDATE, account));
+                    List<ServiceUpdateDetails> results;
+                    results = fetcher.fetchAccountUpdates(account);
+                    publishProgress(new Notification(Event.COMPLETE_ACCOUNT_UPDATE, results));
+
+                
+                    // Now we update the usage for each service.
+                    for (Service service : account.getAllServices()) {
+                        if (!isCancelled()) {
+                            try {
+                                publishProgress(new Notification(Event.START_SERVICE_USAGE_UPDATE, service));
+                                Service clone = service.createUpdateClone();
+                                fetcher.fetchServiceDetails(clone);
+                                publishProgress(new Notification(Event.COMPLETE_SERVICE_USAGE_UPDATE, new Service[] {service, clone}));
+                            } catch (InterruptedException e) {
+                                Log.e(NodeUsage.TAG, "Interrupted while updating Service: ", e);
+                                publishProgress(new Notification(Event.ERROR_IN_SERVICE_USAGE_UPDATE, service, e));
+                            } catch (Exception e) {
+                                Log.e(NodeUsage.TAG, "Error updating Service: ", e);
+                                publishProgress(new Notification(Event.ERROR_IN_SERVICE_USAGE_UPDATE, service, e));
+                            }
+                        }
+                    }
+                } catch (InterruptedException e) {
+                    Log.w(NodeUsage.TAG, "Interrupted fetching account " + account);
+                    publishProgress(new Notification(Event.ERROR_IN_ACCOUNT_UPDATE, account, e));
+                } catch (Exception e) {
+                    Log.e(NodeUsage.TAG, "Error updating Accounts: ", e);
+                    publishProgress(new Notification(Event.ERROR_IN_ACCOUNT_UPDATE, account, e));
+                }
+                
+                
+            } finally {
+                fetcher.cleanup();
+            }
+            return null;
+        }
+        
+        @SuppressWarnings("unchecked")
+        @Override
+        protected void onProgressUpdate(Notification...details) {
+            for (Notification n: details) {
+                switch (n.evt) {
+                case START_ACCOUNT_UPDATE:
+                    Account account = (Account) n.obj;
+                    for (AccountUpdateListener l : listeners) {
+                        l.startingServiceFetchForAccount(account);
+                    }
+                    break;
+                case COMPLETE_ACCOUNT_UPDATE:
+                    notifyNewServiceList((List<ServiceUpdateDetails>) n.obj);
+                    break;
+                case ERROR_IN_ACCOUNT_UPDATE:
+                    for (AccountUpdateListener l : listeners) {
+                        l.errorUpdatingServices((Account) n.obj, n.ex);
+                    }
+                    break;
+                    
+                case START_SERVICE_USAGE_UPDATE:
+                    for (AccountUpdateListener l: listeners) {
+                        l.serviceUpdated((Service) n.obj);
+                    }
+                    break;
+                case COMPLETE_SERVICE_USAGE_UPDATE:
+                    Service[] x = (Service[]) n.obj;
+                    updateService(x[0], x[1]);
+                    break;
+                case ERROR_IN_SERVICE_USAGE_UPDATE:
+                    for (AccountUpdateListener l : listeners) {
+                        l.errorUpdatingService((Service) n.obj, n.ex);
+                    }
+                    break;
+                }
             }
         }
-
-        @Override
-        public List<ServiceUpdateDetails> execute() throws Exception {
-            fetcher = target.getProvider().createFetcher();
-            boolean extraLogging = PreferenceManager.getDefaultSharedPreferences(context).getBoolean("performExtraLogging", false);
-            fetcher.setLogTraffic(extraLogging);
-            return fetcher.fetchAccountUpdates(target);
-        }
-
-        @Override
-        public void after(List<ServiceUpdateDetails> details) throws AccountUpdateException {
-            
-            Set<Service> oldServices = new HashSet<Service>(target.getAllServices());
+        
+        
+        
+        private void notifyNewServiceList(List<ServiceUpdateDetails> details) {
+            Set<Service> oldServices = new HashSet<Service>(account.getAllServices());
             for (ServiceUpdateDetails u: details) {
                 ServiceIdentifier accountNumber = u.getIdentifier();
             
-                Service service = target.getService(accountNumber);
+                Service service = account.getService(accountNumber);
                 if (service == null) {
                     service = new Service();
                     service.setIdentifier(accountNumber);
-                    target.addService(service);
+                    account.addService(service);
                 }
                 service.addProperties(u.getProperties()); //TODO Should we clear existing ones first
                 
@@ -309,109 +330,51 @@ public class DataFetcher  {
                 oldServices.remove(service);
             }
             for (Service service: oldServices) {
-                target.removeService(service);
+                account.removeService(service);
             }
             
             allServices = null;
             for (AccountUpdateListener l : listeners) {
-                l.fetchedServiceNamesForAccount(target);
+                l.fetchedServiceNamesForAccount(account);
             }
             
-            for (Service service : target.getAllServices()) {
-                startFetch(new ServiceUpdaterTask(service, fetcher));
+            // Notify all the services that we are staring the update.
+            for (Service service : account.getAllServices()) {
+                
+                for (AccountUpdateListener l : listeners) {
+                    l.serviceUpdateStarted(service);
+                }
             }
+
         }
 
-        @Override
-        public void error(Exception ex) {
-            allServices = null;
+        protected void updateService(Service service, Service serviceWithUpdates) {
+            service.updateFrom(serviceWithUpdates);
+            service.setLastUpdate(new Date());
+
+            // Update From cloned service.
             for (AccountUpdateListener l : listeners) {
-                l.errorUpdatingServices(target, ex);
-            }
-        }
-    }
-
-    private class ServiceUpdaterTask extends UpdateTask<Service, Service> {
-        private ProviderFetcher fetcher;
-
-        public ServiceUpdaterTask(Service service, ProviderFetcher fetcher) {
-            super(service);
-            this.fetcher = fetcher;
-        }
-
-        @Override
-        public void before() {
-            for (AccountUpdateListener l : listeners) {
-                l.serviceUpdateStarted(target);
-            }
-        }
-
-        @Override
-        public Service execute() throws Exception {
-            Service clone = target.createUpdateClone();
-            fetcher.fetchServiceDetails(clone);
-            return clone;
-        }
-
-        @Override
-        public void after(Service serviceWithUpdates) {
-            // Apply the service changes
-            target.updateFrom(serviceWithUpdates);
-            allServices = null;
-            for (AccountUpdateListener l : listeners) {
-                l.serviceUpdated(target);
-            }
-        }
-
-        @Override
-        public void error(Exception ex) {
-            allServices = null;
-            for (AccountUpdateListener l : listeners) {
-                l.errorUpdatingService(target, ex);
+                l.serviceUpdated(service);
             }
         }
     }
     
+    public static enum Event { START_ACCOUNT_UPDATE, COMPLETE_ACCOUNT_UPDATE, ERROR_IN_ACCOUNT_UPDATE, START_SERVICE_USAGE_UPDATE, COMPLETE_SERVICE_USAGE_UPDATE, ERROR_IN_SERVICE_USAGE_UPDATE };
+    public static class Notification {
+        Event evt;
+        Object obj;
+        Exception ex;
+        
+        public Notification(Event evt, Object obj) {
+            this(evt, obj, null);
+        }
+        
+        public Notification(Event evt, Object obj, Exception ex) {
+            this.evt = evt;
+            this.obj = obj;
+            this.ex = ex;
+        }
+    }
     
-//    public class BackgroundSaver extends Thread {
-//        boolean running = true;
-//        long scheduledSaveTime = -1;
-//        
-//        public synchronized void scheduleSave() {
-////            Log.i(NodeUsage.TAG, "Scheduling Saving preferences");
-//            // Give it 5 seconds... It seems like a long time, but remember
-//            // that saving will happen anyway.
-//            this.scheduledSaveTime = System.currentTimeMillis() + 5000;
-//            notify();
-//        }
-//        
-//        public synchronized void shutdown() {
-//            this.running = false;
-//            notify();
-//        }
-//
-//        @Override
-//        public synchronized void run() {
-//            while (running) {
-//                long now = System.currentTimeMillis();
-//                
-//                if (scheduledSaveTime >= 0 && scheduledSaveTime <= now) {
-//                    saveState();
-//                    scheduledSaveTime = -1;
-//                }
-//    
-//                try {
-//                    if (scheduledSaveTime >= 0) {
-//                        backgroundSaver.wait(scheduledSaveTime - now);
-//                    } else {
-//                        backgroundSaver.wait(); // wait until we're interrupted
-//                    }
-//                } catch (InterruptedException ex) {
-//                }
-//            }
-//            // One final save
-//            saveState();
-//            Log.i(NodeUsage.TAG, "Background state saver finished");
-//        }
-//    }
+    
 }

@@ -20,12 +20,15 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.params.CookiePolicy;
 import org.apache.http.client.params.HttpClientParams;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpProtocolParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.util.EntityUtils;
 
+import android.content.Context;
+import android.util.Log;
+
+import com.eightbitcloud.internode.NodeUsage;
 import com.eightbitcloud.internode.UsageGraphType;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.CounterStyle;
@@ -52,21 +55,16 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
 
     public TimeZone melbourneTZ;
 
-    public VodafoneMBBFetcher(Provider provider) {
-        super(provider);
+    public VodafoneMBBFetcher(Provider provider, Context ctx) {
+        super(provider, ctx);
     }
     
     @Override
-    public DefaultHttpClient createHttpClient() {
-        BasicHttpParams params = new BasicHttpParams();
-        params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
+    protected HttpParams createHttpParams() {
+        BasicHttpParams params = (BasicHttpParams) super.createHttpParams();
         HttpClientParams.setCookiePolicy(params, CookiePolicy.RFC_2109);
-
-        DefaultHttpClient client = new DefaultHttpClient(params);
-        return client;
+        return params;
     }
-    
-   
     
     private String login(Account account) throws AccountUpdateException, InterruptedException {
         try {
@@ -210,7 +208,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
         try {
             
             MetricGroup dataGroup = new MetricGroup(service, DATA_GROUP, Unit.BYTE, CounterStyle.SIMPLE);
-            dataGroup.setGraphTypes(UsageGraphType.MONTHLY_USAGE);
+            dataGroup.setGraphTypes(UsageGraphType.ALL_USAGE);
             dataGroup.setStyle(CounterStyle.SIMPLE);
         
             MeasuredValue dataMval = new MeasuredValue(Unit.BYTE);
@@ -221,7 +219,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
 
             
             MetricGroup smsGroup = new MetricGroup(service, SMS_GROUP, Unit.COUNT, CounterStyle.SIMPLE);
-            smsGroup.setGraphTypes(UsageGraphType.MONTHLY_USAGE);
+            smsGroup.setGraphTypes(UsageGraphType.ALL_USAGE);
             smsGroup.setStyle(CounterStyle.SIMPLE);
             MeasuredValue smsMval = new MeasuredValue(Unit.COUNT);
             smsMval.setName(USAGE);
@@ -253,7 +251,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
             
             String usageStr = EntityUtils.toString(resp.getEntity());
             
-            Pattern valueMatcher = Pattern.compile("<td\\s+class=\"tableBody\"\\s*>([^<]*)</td>");
+            Pattern valueMatcher = Pattern.compile("<td\\s+class=\"tableBodyR1\"\\s*>([^<]*)</td>");
             Matcher m = valueMatcher.matcher(usageStr);
             String[] row;
             while ((row = getValues(7, m, 1)) != null) {
@@ -276,6 +274,8 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
                 UsageRecord r = new UsageRecord(date, amt);
                 r.setCost(cost);
                 r.setDescription(destination);
+                
+                Log.d(NodeUsage.TAG, "Found usage record " + r);
                 
                 if (type.equals("Data/GPRS")) {
                     dataMval.addUsageRecord(r);

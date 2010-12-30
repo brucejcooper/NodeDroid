@@ -10,6 +10,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 import com.eightbitcloud.internode.data.Value;
@@ -22,6 +23,7 @@ public class GraphView extends View {
 
     
     private Value maxValue;
+    private Value totalValue;
     
     Value thresholdValue;
     @SuppressWarnings("unchecked")
@@ -101,10 +103,17 @@ public class GraphView extends View {
     public void setData(GraphData<? extends Object,Value> data) {
         this.data = data;
         maxValue = null;
+        totalValue = null;
         for (Value[] record: data.data.values()) {
             Value sum = sumValues(record);
             if (maxValue == null ||  sum.isGreaterThan(maxValue)) {
                 maxValue = sum;
+            }
+            
+            if (totalValue == null) {
+                totalValue = sum;
+            } else {
+                totalValue = totalValue.plus(sum);
             }
         }
         
@@ -239,7 +248,9 @@ public class GraphView extends View {
         int paintIndex =0;
         float y = y1+20;
         for (Object key: data.xaxisData) {
-            float pos =(float) (360*data.data.get(key)[0].divideByValue(maxValue));
+            float pos =(float) (360*data.data.get(key)[0].divideByValue(totalValue));
+//            Log.d(NodeUsage.TAG, data.data.get(key)[0] + " divided by " + totalValue + " is " + data.data.get(key)[0].divideByValue(totalValue) + " or " + pos);
+            
             Paint c = graphColors.barPaint[paintIndex % graphColors.barPaint.length];
             
             canvas.drawArc(oval, oldpos, pos, true, c);

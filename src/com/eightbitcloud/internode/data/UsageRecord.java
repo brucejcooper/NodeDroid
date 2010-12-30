@@ -67,4 +67,9 @@ public class UsageRecord implements PreferencesSerialisable {
         
     }
 
+    @Override
+    public String toString() {
+        return "UsageRecord [time=" + time + ", amount=" + amount + ", cost=" + cost + ", description=" + description + "]";
+    }
+
 }

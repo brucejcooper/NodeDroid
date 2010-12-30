@@ -109,8 +109,12 @@ public class Plan extends ThingWithProperties implements PreferencesSerialisable
         super.writeTo(obj);
         obj.put(NAME2, name);
         obj.put(DESCRIPTION2, description);
-        obj.put(ROLLOVER, rolloverDate.getTime());
-        obj.put(COST2, cost.getPrefValue());
+        if (rolloverDate != null) {
+            obj.put(ROLLOVER, rolloverDate.getTime());
+        }
+        if (cost != null) {
+            obj.put(COST2, cost.getPrefValue());
+        }
         obj.put(INTERVAL2, interval);
         obj.put(EXTRAS2, PreferencesSerialiser.createJSONRepresentationForStrings(extras));
     }
@@ -120,8 +124,13 @@ public class Plan extends ThingWithProperties implements PreferencesSerialisable
         super.readFrom(obj);
         name = obj.getString(NAME2);
         description = obj.has(DESCRIPTION2) ? obj.getString(DESCRIPTION2) : null;
-        rolloverDate = new Date(obj.getLong(ROLLOVER));
-        cost = new Value(obj.getString(COST2));
+        if (obj.has(ROLLOVER)) {
+            rolloverDate = new Date(obj.getLong(ROLLOVER));
+        }
+        
+        if (obj.has(COST2)) {
+            cost = new Value(obj.getString(COST2));
+        }
         interval = obj.has(INTERVAL2) ? PlanInterval.valueOf(obj.getString(INTERVAL2)) : null;
         extras = PreferencesSerialiser.createStringArray(obj.getJSONArray(EXTRAS2));
     }

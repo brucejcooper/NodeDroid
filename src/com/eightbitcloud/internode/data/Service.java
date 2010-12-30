@@ -1,5 +1,6 @@
 package com.eightbitcloud.internode.data;
 
+import java.util.Date;
 import java.util.List;
 
 import org.json.JSONException;
@@ -27,10 +28,14 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
     private static final String PLAN2 = "plan";
     private static final String IDACCT = "idacct";
     private static final String IDPROV = "idprov";
+    private static final String LASTUPDATE = "lastUpdate";
     private transient Account account;
     private ServiceIdentifier identifier;
     private Plan plan;
     private NameMappedList<MetricGroup> metricGroups = new NameMappedList<MetricGroup>();
+    
+    private Date lastUpdate;
+    private UpdateStatus updateStatus = UpdateStatus.IDLE;
 
     
     public Service createUpdateClone() {
@@ -48,6 +53,7 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
     public void updateFrom(Service u) {
         this.plan = u.plan;
         this.metricGroups = u.metricGroups;
+        this.account = u.account;
         addProperties(u.getProperties());
         // Wow, that was easy....
     }
@@ -134,6 +140,7 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
         obj.put(IDACCT, identifier.getAccountNumber());
         obj.put(PLAN2, plan == null ? null : PreferencesSerialiser.createJSONRepresentation(plan));
         obj.put(MG, PreferencesSerialiser.createJSONRepresentation(metricGroups));
+        obj.put(LASTUPDATE, lastUpdate == null ? -1: lastUpdate.getTime());
     }
 
     @Override
@@ -146,6 +153,27 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
         for (MetricGroup mg: this.metricGroups) {
             mg.__setService(this);
         }
+        lastUpdate = obj.has(LASTUPDATE) ? new Date(obj.getLong(LASTUPDATE)) : null;
+    }
+
+
+    public Date getLastUpdate() {
+        return lastUpdate;
+    }
+
+
+    public void setLastUpdate(Date lastUpdate) {
+        this.lastUpdate = lastUpdate;
+    }
+
+
+    public UpdateStatus getUpdateStatus() {
+        return updateStatus;
+    }
+
+
+    public void setUpdateStatus(UpdateStatus updateStatus) {
+        this.updateStatus = updateStatus;
     }
 
 

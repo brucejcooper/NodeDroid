@@ -1,5 +1,6 @@
 package com.eightbitcloud.internode.data;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,11 +11,11 @@ public class Account extends ThingWithProperties {
     private Provider provider;
     private Map<ServiceIdentifier, Service> services = new HashMap<ServiceIdentifier, Service>();
 
-    public Service getService(ServiceIdentifier accountID) {
+    public synchronized Service getService(ServiceIdentifier accountID) {
         return services.get(accountID);
     }
 
-    public void addService(Service service) {
+    public synchronized void addService(Service service) {
         service.setAccount(this);
         this.services.put(service.getIdentifier(), service);
     }
@@ -43,11 +44,11 @@ public class Account extends ThingWithProperties {
         this.provider = provider;
     }
 
-    public Collection<Service> getAllServices() {
-        return services.values();
+    public synchronized Collection<Service> getAllServices() {
+        return new ArrayList<Service>(services.values());
     }
 
-    public boolean removeService(Service service) {
+    public synchronized boolean removeService(Service service) {
         Service removed = services.remove(service.getIdentifier());
         if (removed != null) {
             removed.setAccount(null);

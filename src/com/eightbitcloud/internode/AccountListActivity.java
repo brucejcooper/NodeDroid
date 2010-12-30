@@ -32,6 +32,7 @@ import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
+import com.eightbitcloud.internode.provider.ProviderFetcher;
 import com.eightbitcloud.internode.provider.WrongPasswordException;
 
 public class AccountListActivity extends ListActivity {
@@ -118,7 +119,7 @@ public class AccountListActivity extends ListActivity {
     public void onStart() {
         super.onStart();
         PreferencesSerialiser.deserialise(getAccountPreferences(), accounts);
-        Log.d(NodeUsage.TAG, "Starting accountlist, accts is " + accounts + ", prefs = " + getAccountPreferences().getAll());
+        Log.d(NodeUsage.TAG, "Starting accountlist, accts is " + accounts);
         ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
         if (accounts.isEmpty()) {
             createNewAccount();
@@ -142,7 +143,7 @@ public class AccountListActivity extends ListActivity {
         super.onPause();
         
         PreferencesSerialiser.serialise(accounts, getAccountPreferences());
-        Log.d(NodeUsage.TAG, "Pausing accountlist, accts is " + accounts + ", prefs = " + getAccountPreferences().getAll());
+        Log.d(NodeUsage.TAG, "Pausing accountlist, accts is " + accounts);
     }
     
     @Override
@@ -203,7 +204,7 @@ public class AccountListActivity extends ListActivity {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 
             final Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
-            providerSpinnerAdapter = (ArrayAdapter<CharSequence>) ArrayAdapter.createFromResource(this, R.array.providers, android.R.layout.simple_spinner_item);
+            providerSpinnerAdapter = (ArrayAdapter<CharSequence>) new ArrayAdapter(this, android.R.layout.simple_spinner_item, ProviderStore.getInstance().getProviderNames());   
             providerSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             providerSpinner.setAdapter(providerSpinnerAdapter);
 
@@ -304,7 +305,13 @@ public class AccountListActivity extends ListActivity {
         protected Boolean doInBackground(Account... params) {
             account = params[0];
             try {
-                account.getProvider().createFetcher().testUsernameAndPassword(account);
+                ProviderFetcher f = account.getProvider().createFetcher(getApplicationContext());
+                try {
+                    f.testUsernameAndPassword(account);
+                } finally {
+                    f.cleanup();
+                }
+                
                 return true;
             } catch (WrongPasswordException e) {
                 errorMessage = "Username or password wrong";

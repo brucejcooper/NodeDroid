@@ -49,6 +49,8 @@
 <string name="home_page_summary">View NodeDroid support homepage</string>
 <string name="send_logs">Send logs to 8-bit cloud</string>
 <string name="send_logs_summary">Email logs of network traffic and errors to 8-bit cloud for diagnosis</string>
+<string name="browserscraper">Browser Scraper</string>
+<string name="browserscraper_summary">Use an embedded browser to teach NodeDroid what your usage looks like</string>
 
 
 

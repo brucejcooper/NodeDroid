@@ -1,4 +1,4 @@
-package com.eightbitcloud.internode.provider.internode;
+package com.eightbitcloud.internode.provider;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -32,6 +32,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import android.content.Context;
 import android.util.Log;
 
 import com.eightbitcloud.internode.NodeUsage;
@@ -49,10 +50,6 @@ import com.eightbitcloud.internode.data.ServiceIdentifier;
 import com.eightbitcloud.internode.data.Unit;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
-import com.eightbitcloud.internode.provider.AbstractFetcher;
-import com.eightbitcloud.internode.provider.AccountUpdateException;
-import com.eightbitcloud.internode.provider.ServiceUpdateDetails;
-import com.eightbitcloud.internode.provider.WrongPasswordException;
 import com.eightbitcloud.internode.util.DateTools;
 import com.eightbitcloud.internode.util.XMLTools;
 
@@ -66,8 +63,8 @@ public class InternodeFetcher extends AbstractFetcher {
     private DocumentBuilderFactory dbf;
     private KeyStore trustStore;
 
-    public InternodeFetcher(Provider provider, KeyStore trustStore) {
-        super(provider);
+    public InternodeFetcher(Provider provider, Context ctx, KeyStore trustStore) {
+        super(provider, ctx);
         this.trustStore = trustStore;
         try {
             dbf = DocumentBuilderFactory.newInstance();
@@ -77,25 +74,22 @@ public class InternodeFetcher extends AbstractFetcher {
             e.printStackTrace();
         }
     }
-
+    
     @Override
-    public DefaultHttpClient createHttpClient() {
+    protected SchemeRegistry createSchemeRegistry() {
         try {
             SSLSocketFactory sf = new SSLSocketFactory(trustStore);
             Scheme httpsScheme = new Scheme("https", sf, 443);
             SchemeRegistry schemeRegistry = new SchemeRegistry();
             schemeRegistry.register(httpsScheme);
-    
-            HttpParams params = new BasicHttpParams();
-            ClientConnectionManager cm = new ThreadSafeClientConnManager(params, schemeRegistry);
-            params.setParameter(HttpProtocolParams.USER_AGENT, "NodeDroid/2.02 (Android Usage Meter <nodedroid@crimsoncactus.net>)");
-            return  new DefaultHttpClient(cm, params);
-        } catch (Exception e) {
-            // This is pretty unlikely
-            e.printStackTrace();
+            
+            return schemeRegistry;
+        } catch (Exception ex) {
+            // Unlikely to happen
             return null;
         }
     }
+
 
     public Element request(URL url, Account account) throws IOException, ParserConfigurationException, IllegalStateException, SAXException, InterruptedException {
         final HttpGet conn = new HttpGet(url.toString());
@@ -146,7 +140,7 @@ public class InternodeFetcher extends AbstractFetcher {
     
     
 
-    public void fetchServiceDetails(Service service) throws AccountUpdateException {
+    public void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException {
         try {
             // Set up the Metric Group for the Account - at this stage, we only measure metered usage.
             MetricGroup mg = new MetricGroup(service, METRIC_GROUP, Unit.BYTE, CounterStyle.QUOTA);
@@ -162,6 +156,8 @@ public class InternodeFetcher extends AbstractFetcher {
             updateServiceDetails(service);
             updateUsage(service);
             updateHistory(service);
+        } catch (InterruptedException ex) {
+            throw ex;
         } catch (Exception e) {
             throw new AccountUpdateException("Error updating usage for " + service, e);
         }
@@ -259,7 +255,7 @@ public class InternodeFetcher extends AbstractFetcher {
 
 
 
-    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, WrongPasswordException {
+    public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, WrongPasswordException, InterruptedException {
         try {
             Element response = request(baseURL, account);
             NodeList services = XMLTools.getNode(XMLTools.getAPINode(response), "services").getElementsByTagName("service");
@@ -285,15 +281,19 @@ public class InternodeFetcher extends AbstractFetcher {
             
         } catch ( WrongPasswordException ex) {
             throw ex;
+        } catch (InterruptedException ex) {
+            throw ex;
         } catch (final Exception ex) {
             throw new AccountUpdateException("Error loading services", ex);
         }
     }
 
 
-    public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException {
+    public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException, InterruptedException {
         try {
             request(baseURL, account);
+        } catch (InterruptedException ex) {
+            throw ex;
         } catch (WrongPasswordException ex) {
             throw ex;
         } catch (Exception e) {

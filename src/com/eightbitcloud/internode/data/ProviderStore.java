@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,7 +14,7 @@ import com.eightbitcloud.internode.GraphColors;
 public class ProviderStore {
 
     private static ProviderStore store;
-    Map<String,Provider> providers = new HashMap<String,Provider>();
+    LinkedHashMap<String,Provider> providers = new LinkedHashMap<String,Provider>();
     
     public ProviderStore() {
         // TODO make this come from an xml file.
@@ -47,15 +48,11 @@ public class ProviderStore {
         vodafoneMBBProv.setBeta(true);
         vodafoneMBBProv.setLogoURL("https://secure.broadband.vodafone.com.au/CRMVOD/img/vodaLogo.jpg");
         vodafoneMBBProv.setUrl("http://www.vodafone.com.au/");
-        vodafoneMBBProv.setTextColour("#006685");        
-        vodafoneMBBProv.setGraphColors(new GraphColors(0xff000000, 0xff006685, 
-//                0xffFFE77F, 0xff674C99, 0xff807299, 0xff807299, 0xffFFD000
-                0xffFF9D00,
-                0xffF6FF00,  0xffA97E38,
-                0xffFFCE7F, 0xffFFD000          
+        vodafoneMBBProv.setTextColour("#ffffff");        
+        vodafoneMBBProv.setGraphColors(new GraphColors(0xff000000, 0xff000000, 0xffff3939          
         ));
         vodafoneMBBProv.setBackgroundResource("vodaheader"); //#fe0000
-//        addProvider(vodafoneMBBProv);
+        addProvider(vodafoneMBBProv);
 
     }
     
@@ -85,5 +82,9 @@ public class ProviderStore {
             }
         });
         return result;
+    }
+
+    public String[] getProviderNames() {
+        return new ArrayList<String>(providers.keySet()).toArray(new String[0]);
     }
 }

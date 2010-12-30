@@ -14,13 +14,20 @@
 			android:paddingTop="24px" android:paddingRight="0px"
 			android:paddingBottom="4px" android:textStyle="bold">
 		</TextView>
+		
+		
 
 		<LinearLayout android:layout_width="fill_parent"
-			android:layout_height="fill_parent" android:gravity="right">
-			<ProgressBar style="?android:attr/progressBarStyleSmall"
-				android:layout_width="65px" android:layout_height="65px"
-				android:indeterminate="true" android:visibility="invisible"
-				android:padding="6px" android:id="@+id/progress" />
+			android:layout_height="fill_parent" android:gravity="right" android:orientation="vertical" android:padding="4px">
+			
+			<FrameLayout android:layout_width="43px" android:layout_height="43px">
+				<ProgressBar style="?android:attr/progressBarStyleSmall"
+					android:layout_width="fill_parent" android:layout_height="fill_parent"
+					android:indeterminate="true" android:visibility="invisible"
+					 android:id="@+id/progress" />
+				<ImageView android:layout_width="fill_parent" android:layout_height="fill_parent" android:id="@+id/pendingImage" android:background="@drawable/pending" android:visibility="invisible"/>
+			</FrameLayout>
+			<TextView android:layout_width="wrap_content" android:textColor="#7000" android:layout_height="wrap_content" android:id="@+id/lastUpdated"  android:textSize="4pt"/>
 		</LinearLayout>
 
 

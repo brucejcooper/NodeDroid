@@ -1,5 +1,6 @@
 package com.eightbitcloud.internode;
 
+import java.util.Date;
 import java.util.List;
 
 import android.content.Context;
@@ -11,6 +12,7 @@ import android.view.View;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -33,7 +35,8 @@ public class ServiceView extends FrameLayout {
     
     UsageGraphView graphView;
     private boolean loading;
-
+    
+    
     public ServiceView(Context context, AttributeSet attrs, final Typeface font) {
         super(context, attrs);
         
@@ -66,9 +69,34 @@ public class ServiceView extends FrameLayout {
         
     }
 
+    public void refreshLastUpdated() {
+        TextView lastUpdatedText = (TextView) findViewById(R.id.lastUpdated);
+        lastUpdatedText.setText(formatTimeAgo(service.getLastUpdate()));
+    }
+
+    
     public void setService(Service service) {
         this.service = service;
         listAdapter.setService(service);
+        
+        ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress);
+        ImageView imageView = (ImageView) findViewById(R.id.pendingImage);
+        switch (service.getUpdateStatus()) {
+        case IDLE:
+            progressBar.setVisibility(View.INVISIBLE);
+            imageView.setVisibility(View.INVISIBLE);
+            break;
+        case PENDING_UPDATE:
+            progressBar.setVisibility(View.INVISIBLE);
+            imageView.setVisibility(View.VISIBLE);
+            break;
+        case UPDATING:
+            progressBar.setVisibility(View.VISIBLE);
+            imageView.setVisibility(View.INVISIBLE);
+            break;
+                
+        }
+        refreshLastUpdated();
         
         Provider prov = service.getAccount().getProvider();
         int resid = getResources().getIdentifier(prov.getBackgroundResource(), "drawable", this.getClass().getPackage().getName());
@@ -82,28 +110,41 @@ public class ServiceView extends FrameLayout {
         update();
     }
     
-    public Service getService() {
-        return this.service;
-    }
-
-    
-    public synchronized void setLoading(boolean loading) {
+    private String formatTimeAgo(Date lastUpdate) {
+        if (lastUpdate == null) {
+            return "never updated";
+        }
+        long diff = System.currentTimeMillis() - lastUpdate.getTime();
         
-        boolean runningBefore = this.loading;
-        this.loading = loading;
-        boolean runningAfterwards = loading;
-
-
-        if (runningBefore ^ runningAfterwards) {
-            ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress);
-            if (runningBefore) {
-                // We're turing it off
-                progressBar.setVisibility(View.INVISIBLE);
+        long seconds = diff / 1000;
+        if (seconds < 60) {
+            return "updated moments ago";
+        } else {
+            long minutes = seconds / 60;
+            if (minutes == 1) {
+                return "updated 1 minute ago";
+            } else if (minutes < 60) {
+                return "updated " + minutes + " minutes ago";
             } else {
-                // We're turning it on.
-                progressBar.setVisibility(View.VISIBLE);
+                long hours = minutes / 60;
+                if (hours == 1) {
+                    return "updated 1 hour ago";
+                } else if (hours < 24) {
+                    return "updated " + hours + " hours ago";
+                } else {
+                    long days = hours / 24;
+                    if (days == 1) {
+                        return "updated " + days + " day ago";
+                    } else {
+                        return "updated " + days + " days ago";
+                    }
+                }
             }
         }
+    }
+
+    public Service getService() {
+        return this.service;
     }
 
     
@@ -177,7 +218,7 @@ public class ServiceView extends FrameLayout {
                     }
         
                     String remainder;
-                    if (daysLeft == 0) {
+                    if (daysLeft <= 0) {
                         remainder = remainingQuota.toString();
                     } else {
                         remainder = remainingQuota.divideByNumber(daysLeft).toString() + "/day";
@@ -221,6 +262,7 @@ public class ServiceView extends FrameLayout {
         TextView name;
         QuotaBarGraph graph; 
     }
+
 
 
 }

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string-array name="providers">
-        <item>Internode</item>
-        <item>Optus Mobile</item>
-        <item>Vodafone MBB</item>
-    </string-array>
-
-</resources>

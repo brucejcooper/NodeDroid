@@ -1,0 +1,87 @@
+         /web/oscportal.portal?_nfpb=true&portlet_viewmyusage_2_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToEBPPUrl&_windowLabel=portlet_viewmyusage_2&portlet_viewmyusage_2accNum=obYJVkQwXEmXbLFkddgTuw%3D%3D&portlet_viewmyusage_2pageName=unbilledUsage&portlet_viewmyusage_2virAcctNum=Dqwz4w3Slk3i%2BrzFSOOB%2FA%3D%3D&_pageLabel=myusage_postpaid
+<a href="/web/oscportal.portal?_nfpb=true&portlet_viewmyusage_3_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToEBPPUrl&_windowLabel=portlet_viewmyusage_3&portlet_viewmyusage_3accNum=Rn0jmGfmd9t9O1hNBFB%2BSw%3D%3D&portlet_viewmyusage_3pageName=unbilledUsage&portlet_viewmyusage_3virAcctNum=5KAXoR0c6uptKjGw%2BeRx7w%3D%3D&_pageLabel=osc_wl_myusage_pg">0418129969</a>
+
+A guy has send me a link to optus wireless broadband stuff
+
+<a href="/web/oscportal.portal?_nfpb=true&portlet_viewmyusage_3_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToSnapShot&_windowLabel=portlet_viewmyusage_3&_pageLabel=osc_wl_myusage_pg">Broadband Usage</a>
+<a href="/web/oscportal.portal?_nfpb=true&portlet_viewmyusage_3_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToEBPPUrl&_windowLabel=portlet_viewmyusage_3&portlet_viewmyusage_3accNum=Rn0jmGfmd9t9O1hNBFB%2BSw%3D%3D&portlet_viewmyusage_3pageName=unbilledUsage&portlet_viewmyusage_3svcType=OWB&portlet_viewmyusage_3virAcctNum=koywLc9v6x6XzX8iDlJ1Nw%3D%3D&_pageLabel=osc_wl_myusage_pg">SMS Usage</a>
+
+It comes from a text blob that looks like:
+<td valign="top" class="blue2" width ="25%">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                             
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                             
+11-09 16:30:58.076 28123 28158 D NodeDroid: 											
+11-09 16:30:58.076 28123 28158 D NodeDroid: 												
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                        
+11-09 16:30:58.076 28123 28158 D NodeDroid: HTTP15:              
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     <a id="id_owb_lnk_0422119653" style="display:block; cursor:pointer; text-decoration:underline" onClick="showLoading('owb', '0422119653')">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                 0422119653
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     </a>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         <div id="id_owb_txt_0422119653" style="display:none">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                             0422119653
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         </div>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         <div id="msg_console_owb_0422119653" style="padding: 0pt 0pt 0px 5px; display: none; float: left;">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                 <div style="float: left; margin-right: 10px;">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                     <img src="/web/ShowBinary/SCSRepository/assets/images/fragments/servicecentre/waiting_icon.gif">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                 </div>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                 <span style="padding: 0pt; color: rgb(0, 151, 172); font-size: 10px;">
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                     Loading...
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                                 </span>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         </div>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         <li class="blue2" id="bb_usage_owb_0422119653" style="display:none"> 
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                             <a href="/web/oscportal.portal?_nfpb=true&portlet_viewmyusage_3_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToSnapShot&_windowLabel=portlet_viewmyusage_3&_pageLabel=osc_wl_myusage_pg">Broadband Usage</a>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         </li>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         <li class="blue2" id="sms_usage_owb_0422119653" style="display:none"> 
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                             <a href="/web/oscportal.portal?_nfpb=true&portlet_viewmyusage_3_actionOverride=%2Fportlets%2Fosc%2FViewMyUsage%2FgoToEBPPUrl&_windowLabel=portlet_viewmyusage_3&portlet_viewmyusage_3accNum=Rn0jmGfmd9t9O1hNBFB%2BSw%3D%3D&portlet_viewmyusage_3pageName=unbilledUsage&portlet_viewmyusage_3svcType=OWB&portlet_viewmyusage_3virAcctNum=koywLc9v6x6XzX8iDlJ1Nw%3D%3D&_pageLabel=osc_wl_myusage_pg">SMS Usage</a>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                         </li>
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                              
+11-09 16:30:58.076 28123 28158 D NodeDroid: 													
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                        
+
+16:30:58.076 28123 28158 D NodeDroid: HTTP15:                              
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid:                                                     
+11-09 16:30:58.076 28123 28158 D NodeDroid: 												
+ 											</td>
+ 											

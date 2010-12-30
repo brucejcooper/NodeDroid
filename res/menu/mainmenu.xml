@@ -4,4 +4,5 @@
 <item android:title="@string/accountsmenuitem" android:icon="@drawable/ic_menu_add" android:id="@+id/accountsMenuItem"></item>
 <item android:id="@+id/refreshMenuItem" android:icon="@drawable/redo" android:title="@string/refreshmenuitem"></item>
 <item android:id="@+id/settingsMenuItem" android:icon="@drawable/ic_menu_preferences" android:title="@string/settingsmenuitem"></item>
+
 </menu>
