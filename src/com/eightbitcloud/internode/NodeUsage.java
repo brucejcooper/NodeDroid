@@ -33,7 +33,6 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.admob.android.ads.AdManager;
 import com.eightbitcloud.internode.data.Account;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
@@ -194,55 +193,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         }
 
         
-        AdManager.setTestDevices( new String[] {                 
-                AdManager.TEST_EMULATOR             // Android emulator
-        } );  
 
-        
-//        AdView ad = (AdView) findViewById(R.id.ad);
-//        ad.setAdListener(new SimpleAdListener() {
-//
-//            /* (non-Javadoc)
-//             * @see com.admob.android.ads.AdView.SimpleAdListener#onFailedToReceiveAd(com.admob.android.ads.AdView)
-//             */
-//            @Override
-//            public void onFailedToReceiveAd(AdView adView)
-//            {
-//                super.onFailedToReceiveAd(adView);
-//                Log.i(TAG, "Failed to receive Ad");
-//            }
-//
-//            /* (non-Javadoc)
-//             * @see com.admob.android.ads.AdView.SimpleAdListener#onFailedToReceiveRefreshedAd(com.admob.android.ads.AdView)
-//             */
-//            @Override
-//            public void onFailedToReceiveRefreshedAd(AdView adView)
-//            {
-//                super.onFailedToReceiveRefreshedAd(adView);
-//                Log.i(TAG, "Failed to receive refreshed Ad");
-//            }
-//
-//            /* (non-Javadoc)
-//             * @see com.admob.android.ads.AdView.SimpleAdListener#onReceiveAd(com.admob.android.ads.AdView)
-//             */
-//            @Override
-//            public void onReceiveAd(AdView adView)
-//            {
-//                super.onReceiveAd(adView);
-//                Log.i(TAG, "Received Ad");
-//            }
-//
-//            /* (non-Javadoc)
-//             * @see com.admob.android.ads.AdView.SimpleAdListener#onReceiveRefreshedAd(com.admob.android.ads.AdView)
-//             */
-//            @Override
-//            public void onReceiveRefreshedAd(AdView adView)
-//            {
-//                super.onReceiveRefreshedAd(adView);
-//                Log.i(TAG, "Received Refreshed Ad");
-//            }
-//        });
-//        
         
         // Establish a connection with the service.  We use an explicit
         // class name because we want a specific service implementation that
