@@ -321,6 +321,7 @@ public class DataFetcher  {
                     service.setIdentifier(accountNumber);
                     account.addService(service);
                 }
+                service.setServiceType(u.getServiceType());
                 service.addProperties(u.getProperties()); //TODO Should we clear existing ones first
                 
                 if (u.getPlan() != null) {

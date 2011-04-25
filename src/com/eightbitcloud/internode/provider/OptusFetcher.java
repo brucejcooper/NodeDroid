@@ -40,12 +40,14 @@ import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.data.ServiceIdentifier;
+import com.eightbitcloud.internode.data.ServiceType;
 import com.eightbitcloud.internode.data.Unit;
 import com.eightbitcloud.internode.data.UsageRecord;
 import com.eightbitcloud.internode.data.Value;
 import com.eightbitcloud.internode.util.DateTools;
 
 public class OptusFetcher extends AbstractFetcher {
+
     public static final String CAP_GROUP = "Cap";
     public static final String FREE_DATA_GROUP = "Free Data";
     public static final String FREE_CALLS_GROUP = "Free Calls";
@@ -185,7 +187,7 @@ public class OptusFetcher extends AbstractFetcher {
             Pattern itemSeparatorPattern = Pattern.compile("<li class=\"service_item [^\"]*\">");
             List<String> itemSections = cutUp(loginResult, itemSeparatorPattern, m3.end());
             
-            Set<String> usageURLs = new HashSet<String>();
+            Set<UsageURL> usageURLs = new HashSet<UsageURL>();
             for (String section: itemSections) {
                 // Get the Phone number.  
                 // TODO technically there could be multiple of these, and it might be possible to have non-digits.
@@ -194,7 +196,21 @@ public class OptusFetcher extends AbstractFetcher {
 //                if (!phoneNumberMatcher.find())
 //                    throw new IOException("Expected to find service items....");
 //                String phoneNumber = phoneNumberMatcher.group(1);
-//                
+                
+                Pattern serviceTypePattern = Pattern.compile("<span>([^<]*)</span>");
+                Matcher serviceTypeMatcher = serviceTypePattern.matcher(section);
+                
+                ServiceType serviceType = ServiceType.MONTHLY_QUOTA_WITH_EXCESS;
+                if (serviceTypeMatcher.find()) {
+                    String typeStr = serviceTypeMatcher.group(1);
+                    Log.i(NodeUsage.TAG, "Service has type of " + typeStr);
+                    if (typeStr.equalsIgnoreCase("Pre-Paid")) {
+                        serviceType = ServiceType.PREPAID;
+                    }
+                } else {
+                    Log.w(NodeUsage.TAG, "Couldn't find service type.  Assuming a cap");
+                }
+                
                 
                 // The front page shows "show usage" for each service, but then the individual URLs are all on the next page.
                 // Weed out the duplicates by putting them in a set, then go fetch those pages.
@@ -202,12 +218,12 @@ public class OptusFetcher extends AbstractFetcher {
                 Matcher usageURLMatcher = usageURLPattern.matcher(section);
                 while (usageURLMatcher.find()) {
                     String usageURL = prependHost(usageURLMatcher.group(1));
-                    usageURLs.add(usageURL);
+                    usageURLs.add(new UsageURL(serviceType, usageURL));
                 }
             }
                 
-            for (String intermediateUsageURL: usageURLs) {
-                HttpGet intermediatePage = new HttpGet(intermediateUsageURL);
+            for (UsageURL intermediateUsageURL: usageURLs) {
+                HttpGet intermediatePage = new HttpGet(intermediateUsageURL.url);
                 HttpResponse resp = executeThenCheckIfInterrupted(intermediatePage);
                 
                 if (resp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
@@ -223,7 +239,8 @@ public class OptusFetcher extends AbstractFetcher {
 
                     ServiceIdentifier serviceIdentifier = new ServiceIdentifier(provider.getName(), accountID);
                     ServiceUpdateDetails service = new ServiceUpdateDetails(serviceIdentifier);
-                    service.setProperty(INTERMEDIATE_URL, intermediateUsageURL);
+                    service.setServiceType(intermediateUsageURL.type);
+                    service.setProperty(INTERMEDIATE_URL, intermediateUsageURL.url);
                     service.setProperty(USAGE_URL, realURL);
                     
                     result.add(service);
@@ -704,5 +721,28 @@ public class OptusFetcher extends AbstractFetcher {
         
     }
 
+
+    public static class UsageURL {
+        ServiceType type;
+        String url;
+        
+        public UsageURL(ServiceType type, String url) {
+            this.type = type;
+            this.url = url;
+        }
+        
+        @Override
+        public boolean equals(Object o) {
+            if (!(o instanceof UsageURL))
+                return false;
+            
+            return ((UsageURL) o).url.equals(url);
+        }
+        
+        @Override
+        public int hashCode() {
+            return url.hashCode();
+        }
+    }
 
 }

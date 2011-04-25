@@ -51,7 +51,7 @@ public abstract class AbstractFetcher implements ProviderFetcher {
             DateFormat f = new SimpleDateFormat("yyyyMMddHHmmss");
             try {
                 return  new PrintWriter(new OutputStreamWriter(context.openFileOutput(
-                        "FetcherLog-" + provider.getName().replace(' ', '_') + '-' + f.format(new Date()) + '-' + Thread.currentThread().getId() + ".txt", Context.MODE_APPEND)));
+                        "FetcherLog-" + provider.getName().replace(' ', '_') + '-' + f.format(new Date()) + '-' + Thread.currentThread().getId() + ".txt", Context.MODE_APPEND | Context.MODE_WORLD_READABLE)));
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
                 return null;

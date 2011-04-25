@@ -29,10 +29,13 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
     private static final String IDACCT = "idacct";
     private static final String IDPROV = "idprov";
     private static final String LASTUPDATE = "lastUpdate";
+    private static final String TYPE = "type";
     private transient Account account;
     private ServiceIdentifier identifier;
     private Plan plan;
     private NameMappedList<MetricGroup> metricGroups = new NameMappedList<MetricGroup>();
+    
+    private ServiceType serviceType = ServiceType.MONTHLY_QUOTA_WITH_EXCESS;
     
     private Date lastUpdate;
     private UpdateStatus updateStatus = UpdateStatus.IDLE;
@@ -85,6 +88,14 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
     }
     public void setPlan(Plan plan) {
         this.plan = plan;
+    }
+    
+    public ServiceType getServiceType() {
+        return serviceType;
+    }
+    
+    public void setServiceType(ServiceType type) {
+        this.serviceType = type;
     }
 
     public MetricGroup getMetricGroup(String metricGroupName) {
@@ -139,6 +150,7 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
         obj.put(IDPROV, identifier.getProvider());
         obj.put(IDACCT, identifier.getAccountNumber());
         obj.put(PLAN2, plan == null ? null : PreferencesSerialiser.createJSONRepresentation(plan));
+        obj.put(TYPE, serviceType.toString());
         obj.put(MG, PreferencesSerialiser.createJSONRepresentation(metricGroups));
         obj.put(LASTUPDATE, lastUpdate == null ? -1: lastUpdate.getTime());
     }
@@ -149,6 +161,7 @@ public class Service extends ThingWithProperties implements PreferencesSerialisa
         this.identifier = new ServiceIdentifier(obj.getString(IDPROV), obj.getString(IDACCT));
         this.plan = new Plan();
         this.plan.readFrom(obj.getJSONObject(PLAN2));
+        this.serviceType = obj.has(TYPE) ? ServiceType.valueOf(obj.getString(TYPE)) : ServiceType.MONTHLY_QUOTA_WITH_EXCESS;
         PreferencesSerialiser.populateJSONList(this.metricGroups = new NameMappedList<MetricGroup>(), MetricGroup.class, obj.getJSONArray(MG));
         for (MetricGroup mg: this.metricGroups) {
             mg.__setService(this);
