@@ -31,6 +31,7 @@ public class MeasuredValue implements NamedThing, Comparable<MeasuredValue>, Pre
         
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -59,6 +60,7 @@ public class MeasuredValue implements NamedThing, Comparable<MeasuredValue>, Pre
         return units;
     }
 
+    @Override
     public int compareTo(MeasuredValue another) {
         if (this.units != another.units) {
             throw new IncompatibleUnitsError();
@@ -76,6 +78,7 @@ public class MeasuredValue implements NamedThing, Comparable<MeasuredValue>, Pre
         usageRecords.clear();
     }
 
+    @Override
     public void writeTo(JSONObject obj) throws JSONException {
         obj.put(NAME2, name);
         obj.put(AMOUNT2, amount.getPrefValue());
@@ -83,6 +86,7 @@ public class MeasuredValue implements NamedThing, Comparable<MeasuredValue>, Pre
         obj.put(USAGE_RECORDS, PreferencesSerialiser.createJSONRepresentation(usageRecords.values()));
     }
 
+    @Override
     public void readFrom(JSONObject obj) throws JSONException {
         name = obj.getString(NAME2);
         amount = new Value(obj.getString(AMOUNT2));

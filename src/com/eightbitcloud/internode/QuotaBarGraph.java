@@ -14,20 +14,18 @@ import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.eightbitcloud.internode.R;
 import com.eightbitcloud.internode.data.MeasuredValue;
 import com.eightbitcloud.internode.data.Value;
 
 public class QuotaBarGraph extends View {
-
-    float time = 0.55f;
-    
-    Drawable clockBitmap;
-    
     private static final float ARROW_HEIGHT = 5;
     private static final float ARROW_HALF_WIDTH = 4;
-    
-    GraphColors graphColors = new GraphColors(0xff43be6d, 0xFF166d6e, 0xFFf47836);
-    private Paint timePaint;
+    public static final GraphColors DEFAULT_GRAPH_COLORS = new GraphColors(0xff43be6d, 0xFF166d6e, 0xFFf47836);
+    private float time = 0.55f;
+    private static Drawable clockBitmap;
+    private GraphColors graphColors = DEFAULT_GRAPH_COLORS;
+    private static Paint timePaint;
     private List<MeasuredValue> values;
     private Value maximum;
 
@@ -58,7 +56,7 @@ public class QuotaBarGraph extends View {
     }
     
     
-    public Paint getTimePaint() {
+    public static Paint getTimePaint() {
         if (timePaint == null) {
             timePaint = new Paint();
             timePaint.setAntiAlias(true);
@@ -161,17 +159,12 @@ public class QuotaBarGraph extends View {
         return result;
     }
 
-    /**
-     * Render the text
-     * 
-     * @see android.view.View#onDraw(android.graphics.Canvas)
-     */
-    @Override
-    protected void onDraw(Canvas canvas) {
-        super.onDraw(canvas);
+    
+    
+    public static void renderGraph(Canvas canvas, int width, int height, int paddingTop, int paddingLeft, int paddingBottom, int paddingRight, GraphColors graphColors, List<MeasuredValue> values, Value maximum, float time, Drawable clockBitmap) {
         
 
-       RectF r = new RectF(getPaddingLeft(), getPaddingTop(), getWidth()-getPaddingRight(), 30);
+       RectF r = new RectF(paddingLeft, paddingTop, width-paddingRight, height);
        
        canvas.drawRect(r.left+2, r.top+2, r.right+2, r.bottom+2, graphColors.dropShadowPaint);
        canvas.drawRoundRect(r, 3, 3, graphColors.barBackgroundPaint);
@@ -198,7 +191,7 @@ public class QuotaBarGraph extends View {
        canvas.drawRoundRect(r, 3, 3, graphColors.graphBorderPaint);
 
        
-       float timeX = getPaddingLeft() + r.width()*time;
+       float timeX = paddingLeft + r.width()*time;
        float top = r.top+0.75f;
        float bottom = r.bottom-0.75f;
        canvas.drawLines(new float[] { timeX-ARROW_HALF_WIDTH, top, 
@@ -226,9 +219,24 @@ public class QuotaBarGraph extends View {
        
                                        }, getTimePaint());
        clockBitmap.setBounds((int)timeX-clockBitmap.getIntrinsicWidth()/2, (int)bottom+8, (int)timeX+clockBitmap.getIntrinsicWidth()/2, (int)bottom+8+clockBitmap.getIntrinsicHeight());
-       
        clockBitmap.draw(canvas);
-       
+
+    }
+
+    
+    /**
+     * Render the text
+     * 
+     * @see android.view.View#onDraw(android.graphics.Canvas)
+     */
+    @Override
+    protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
+        
+        int myWidth = getWidth();
+        int myHeight = getHeight();
+
+        renderGraph(canvas, myWidth, myHeight-20, getPaddingTop(), getPaddingLeft(), getPaddingBottom(), getPaddingRight(), graphColors, values, maximum, time, clockBitmap);
 
 
     }

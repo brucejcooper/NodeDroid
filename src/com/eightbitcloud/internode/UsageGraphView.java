@@ -18,6 +18,7 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.RadioGroup.OnCheckedChangeListener;
 
+import com.eightbitcloud.internode.R;
 import com.eightbitcloud.internode.data.MeasuredValue;
 import com.eightbitcloud.internode.data.MetricGroup;
 import com.eightbitcloud.internode.data.Plan;
@@ -64,6 +65,7 @@ public class UsageGraphView extends LinearLayout {
         buttonLayout.setPadding(0, 0, 0, 0);
         
         buttonLayout.setOnCheckedChangeListener(new OnCheckedChangeListener() {
+            @Override
             public void onCheckedChanged(RadioGroup group, int checkedId) {
                 if (checkedId != -1) {
                     setSelectedGraph(UsageGraphType.values()[checkedId - GRAPHTYPE_ID_BASE]);
@@ -321,6 +323,7 @@ public class UsageGraphView extends LinearLayout {
             data.put(v, new Value[] {v.getAmount()});
         }
         graph.setData(new GraphData<MeasuredValue,Value>(values, data, GraphStyle.PIE, new KeyFormatter() {
+            @Override
             public String format(Object key) {
                 MeasuredValue v = ((MeasuredValue) key);
                 return v.getAmount() + " of " + v.getName();

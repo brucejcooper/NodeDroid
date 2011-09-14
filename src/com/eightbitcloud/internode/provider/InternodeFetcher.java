@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -56,6 +57,7 @@ public class InternodeFetcher extends AbstractFetcher {
     private URL baseURL;
     private DocumentBuilderFactory dbf;
     private KeyStore trustStore;
+    private Account account;
 
     public InternodeFetcher(Provider provider, Context ctx, KeyStore trustStore) {
         super(provider, ctx);
@@ -120,22 +122,27 @@ public class InternodeFetcher extends AbstractFetcher {
         }
     }
     
-    private URL getServiceURL(Service service) throws MalformedURLException {
-        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/service");
+    private URL getServiceURL(Map<String,String> service) throws MalformedURLException {
+        return new URL(baseURL, service.get(SERVICEURL_KEY) + "/service");
     }
-    private URL getUsageURL(Service service) throws MalformedURLException  {
-        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/usage");
+    private URL getUsageURL(Map<String,String> service) throws MalformedURLException  {
+        return new URL(baseURL, service.get(SERVICEURL_KEY) + "/usage");
     }
-    private URL getHistoryURL(Service service) throws MalformedURLException  {
-        return new URL(baseURL, service.getProperty(SERVICEURL_KEY) + "/history");
+    private URL getHistoryURL(Map<String,String>  service) throws MalformedURLException  {
+        return new URL(baseURL, service.get(SERVICEURL_KEY) + "/history");
     }
 
     
     
     
 
-    public void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException {
+    @Override
+    public Service fetchServiceDetails(Account account, ServiceUpdateDetails updateDetails) throws AccountUpdateException, InterruptedException {
+        this.account = account;
+        Service service = new Service(account, updateDetails);
         try {
+            service.setIdentifier(updateDetails.getIdentifier());
+            
             // Set up the Metric Group for the Account - at this stage, we only measure metered usage.
             MetricGroup mg = new MetricGroup(service, METRIC_GROUP, Unit.BYTE, CounterStyle.QUOTA);
             mg.setGraphTypes(UsageGraphType.MONTHLY_USAGE, UsageGraphType.YEARLY_USAGE);
@@ -147,9 +154,11 @@ public class InternodeFetcher extends AbstractFetcher {
             mg.setComponents(Collections.singletonList(val));
             service.setMetricGroups(Collections.singletonList(mg));
 
-            updateServiceDetails(service);
-            updateUsage(service);
-            updateHistory(service);
+            updateServiceDetails(service, updateDetails.getProperties());
+            updateUsage(service, updateDetails.getProperties());
+            updateHistory(service, updateDetails.getProperties());
+            
+            return service;
         } catch (InterruptedException ex) {
             throw ex;
         } catch (Exception e) {
@@ -163,8 +172,8 @@ public class InternodeFetcher extends AbstractFetcher {
     }
 
 
-    private void updateServiceDetails(Service service) throws IOException, ParseException, IllegalStateException, ParserConfigurationException, SAXException, InterruptedException {
-        Element result = XMLTools.getAPINode(request(getServiceURL(service), service.getAccount()));
+    private void updateServiceDetails(Service service, Map<String, String> properties) throws IOException, ParseException, IllegalStateException, ParserConfigurationException, SAXException, InterruptedException {
+        Element result = XMLTools.getAPINode(request(getServiceURL(properties), account));
         Element e = XMLTools.getNode(result, "service");
         
         Plan plan = new Plan();
@@ -178,7 +187,7 @@ public class InternodeFetcher extends AbstractFetcher {
         plan.setInterval(PlanInterval.valueOf(XMLTools.getChildText(e, "plan-interval")));
         plan.setCost(parseAmount(XMLTools.getNode(e, "plan-cost")));
 
-        service.setProperty("UsageRating", XMLTools.getChildText(e, "usage-rating"));
+//        service.setProperty("UsageRating", XMLTools.getChildText(e, "usage-rating"));
 
         group.setExcessCharged(parseBoolean(XMLTools.getChildText(e, "excess-charged")));
         group.setExcessShaped(parseBoolean(XMLTools.getChildText(e, "excess-shaped")));
@@ -202,8 +211,8 @@ public class InternodeFetcher extends AbstractFetcher {
 
 
 
-    private void updateUsage(Service s) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, InterruptedException {
-        Element result = XMLTools.getAPINode(request(getUsageURL(s), s.getAccount()));
+    private void updateUsage(Service s, Map<String, String> properties) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, InterruptedException {
+        Element result = XMLTools.getAPINode(request(getUsageURL(properties), account));
 
         Element node = XMLTools.getNode(result, "traffic");
         long val = Long.parseLong(node.getFirstChild().getNodeValue());
@@ -226,8 +235,8 @@ public class InternodeFetcher extends AbstractFetcher {
     }
 
 
-    private void updateHistory(Service service) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, ParseException, InterruptedException {
-        Element result = XMLTools.getAPINode(request(getHistoryURL(service), service.getAccount()));
+    private void updateHistory(Service service, Map<String, String> properties) throws IllegalStateException, MalformedURLException, IOException, ParserConfigurationException, SAXException, ParseException, InterruptedException {
+        Element result = XMLTools.getAPINode(request(getHistoryURL(properties), account));
 
         Element e = XMLTools.getNode(result, "usagelist");
         NodeList nl = e.getElementsByTagName("usage");
@@ -249,6 +258,7 @@ public class InternodeFetcher extends AbstractFetcher {
 
 
 
+    @Override
     public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, WrongPasswordException, InterruptedException {
         try {
             Element response = request(baseURL, account);
@@ -283,6 +293,7 @@ public class InternodeFetcher extends AbstractFetcher {
     }
 
 
+    @Override
     public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException, InterruptedException {
         try {
             request(baseURL, account);

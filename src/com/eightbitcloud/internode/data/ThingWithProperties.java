@@ -36,6 +36,7 @@ public class ThingWithProperties implements PreferencesSerialisable{
     }
 
     
+    @Override
     public void writeTo(JSONObject obj) throws JSONException {
         if (properties != null) {
             for (Map.Entry<String,String> e: properties.entrySet()) {
@@ -44,6 +45,7 @@ public class ThingWithProperties implements PreferencesSerialisable{
         }
     }
 
+    @Override
     public void readFrom(JSONObject obj) throws JSONException {
         @SuppressWarnings("unchecked")
         Iterator<String> keys = obj.keys();

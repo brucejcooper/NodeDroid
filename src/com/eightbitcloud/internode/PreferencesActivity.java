@@ -16,7 +16,6 @@
 
 package com.eightbitcloud.internode;
 
-import java.io.Externalizable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -54,6 +53,7 @@ public class PreferencesActivity extends PreferenceActivity {
         Preference send = ps.getPreference(1);
         send.setOnPreferenceClickListener(new OnPreferenceClickListener() {
 
+            @Override
             public boolean onPreferenceClick(Preference preference) {
                 boolean extraLogging = PreferenceManager.getDefaultSharedPreferences(PreferencesActivity.this).getBoolean("performExtraLogging", false);
                 if (extraLogging) {
@@ -63,12 +63,14 @@ public class PreferencesActivity extends PreferenceActivity {
                     builder.setMessage("Logs will be much more useful if you do a refresh from the main screen with Detailed Logging turned on first.  Do you still want to send only the brief logs?")
                            .setCancelable(true)
                            .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                               public void onClick(DialogInterface confirmDialog, int id) {
+                               @Override
+                            public void onClick(DialogInterface confirmDialog, int id) {
                                    confirmDialog.cancel();
                                    sendLogs();
                                }
                            }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-                               public void onClick(DialogInterface confirmDialog, int id) {
+                               @Override
+                            public void onClick(DialogInterface confirmDialog, int id) {
                                    confirmDialog.cancel();
                               }
                           });
@@ -108,6 +110,7 @@ public class PreferencesActivity extends PreferenceActivity {
                 }
                 
                 
+                @Override
                 public void run() {
                     
                     try {
@@ -124,6 +127,7 @@ public class PreferencesActivity extends PreferenceActivity {
                         
                         // Now 
                         File[] dumps = getFilesDir().listFiles(new FilenameFilter() {
+                            @Override
                             public boolean accept(File dir, String filename) {
                                 return filename.startsWith("FetcherLog-");
                             }
@@ -138,6 +142,7 @@ public class PreferencesActivity extends PreferenceActivity {
                     
                         mHandler.post(new Runnable() {
         
+                            @Override
                             public void run() {
                                 if (ex != null) {
                                     Toast t = Toast.makeText(PreferencesActivity.this, "Error Preparing logs: " + ex, Toast.LENGTH_LONG);
@@ -159,6 +164,7 @@ public class PreferencesActivity extends PreferenceActivity {
                         });
                     } catch (final IOException ex) {
                         mHandler.post(new Runnable() {
+                            @Override
                             public void run() {
                                 Toast.makeText(PreferencesActivity.this, "Errror Collecting logs: " + ex, Toast.LENGTH_SHORT).show();
                             }

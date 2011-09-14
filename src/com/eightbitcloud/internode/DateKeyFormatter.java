@@ -13,6 +13,7 @@ public class DateKeyFormatter implements KeyFormatter {
         this.format = format;
     }
 
+    @Override
     public String format(Object key) {
         if (!(key instanceof Date)) {
             return key.toString();

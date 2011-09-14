@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  <FrameLayout android:layout_height="fill_parent" android:layout_width="fill_parent" android:padding="10px" xmlns:android="http://schemas.android.com/apk/res/android">
+<LinearLayout 
+  android:id="@+id/widgetBackground"
   android:layout_width="fill_parent"
   android:layout_height="fill_parent"
   android:orientation="vertical"
-  android:background="@drawable/padded_background"  android:paddingLeft="8px" android:paddingRight="8px" android:paddingTop="6px" android:paddingBottom="6px">
+  >
   
-  <TextView android:text="Hello" android:textColor="#777777" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
-  
-  <ImageView android:id="@+id/widgetImage" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1" android:scaleType="fitXY"></ImageView>
+  <LinearLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:orientation="horizontal"   android:paddingTop="6dp" android:paddingLeft="10dp" android:paddingRight="10dp" android:gravity="right|center_vertical">
+    <TextView android:id="@+id/widgetHeader" android:text="NodeDroid: Loading..." android:textStyle="bold" android:textColor="#777777" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1"/>
+  	<ImageButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/widget_config" android:id="@+id/widget_config" android:padding="0px" android:background="@null"/>
+  	<ImageButton android:layout_width="wrap_content" android:layout_height="wrap_content" android:src="@drawable/widget_reload" android:id="@+id/widget_reload" android:background="@null" android:paddingLeft="5dp"/>
+  </LinearLayout>
+  <ImageView android:id="@+id/widgetImage" android:layout_width="fill_parent" android:layout_height="fill_parent" android:layout_weight="1" android:scaleType="centerInside"   android:paddingLeft="10dp" android:paddingRight="10dp"></ImageView>
 </LinearLayout>
+</FrameLayout>

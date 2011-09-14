@@ -152,6 +152,7 @@ public class OptusFetcher extends AbstractFetcher {
         }
     }
 
+    @Override
     public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException, WrongPasswordException {
         List<ServiceUpdateDetails> result = new ArrayList<ServiceUpdateDetails>();
         
@@ -179,9 +180,9 @@ public class OptusFetcher extends AbstractFetcher {
                 throw new IOException("Couldn't find account address");
             String address = cleanupSpaces(m3.group(1));
             
-            account.setProperty("Owner", owner);  // TODO This is a direct update to the account, which shouldn't be done....
-            account.setProperty("AccountNumber", accountNumber);
-            account.setProperty("Address", address);
+//            account.setProperty("Owner", owner);  // TODO This is a direct update to the account, which shouldn't be done....
+//            account.setProperty("AccountNumber", accountNumber);
+//            account.setProperty("Address", address);
 
             // We need to cut it up between the items 
             Pattern itemSeparatorPattern = Pattern.compile("<li class=\"service_item [^\"]*\">");
@@ -309,13 +310,15 @@ public class OptusFetcher extends AbstractFetcher {
     
     
 
-    public void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException {
+    @Override
+    public Service fetchServiceDetails(Account account, ServiceUpdateDetails identifier) throws AccountUpdateException, InterruptedException {
         String usageDoc = null;
         try {
+            Service service = new Service(account, identifier);
             
             // Optus requires the intermediate page to be loaded up first, that presumably sets variables in the user's session.
             // We don't care about the contents.
-            String intermediateURL = service.getProperty(INTERMEDIATE_URL);
+            String intermediateURL = identifier.getProperty(INTERMEDIATE_URL);
             HttpGet intermediateUsagePage = new HttpGet(intermediateURL);
             HttpResponse iresp = executeThenCheckIfInterrupted(intermediateUsagePage);
             if (iresp.getStatusLine().getStatusCode() != HttpStatus.SC_OK)
@@ -324,7 +327,7 @@ public class OptusFetcher extends AbstractFetcher {
 
             
             
-            String realURL = service.getProperty(USAGE_URL);
+            String realURL = identifier.getProperty(USAGE_URL);
             HttpGet usagePage = new HttpGet(realURL);
             HttpResponse resp = executeThenCheckIfInterrupted(usagePage);
             
@@ -570,6 +573,7 @@ public class OptusFetcher extends AbstractFetcher {
                 // Look for a new day...
                 start = usageDoc.indexOf("<table class=\"unbilledUsageDetail\">", end);
             }
+            return service;
         } catch (ParseException ex) {
             throw new AccountUpdateException("Error logging in", ex);
         } catch (IOException ex) {
@@ -614,6 +618,8 @@ public class OptusFetcher extends AbstractFetcher {
             txToComponents.put("VoiceMail", "Other");
             
             txToComponents.put("Internet", "Data - Mobile Internet");
+            txToComponents.put("Video Streaming", "Data - Mobile Internet");
+            txToComponents.put("Apps Usage Mobile", "Data - Mobile Internet");
             txToComponents.put("Social Internet", "Social Internet");
 
         
@@ -711,6 +717,7 @@ public class OptusFetcher extends AbstractFetcher {
         return usageURL;
     }
 
+    @Override
     public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException {
         try {
             login(account);
@@ -720,7 +727,7 @@ public class OptusFetcher extends AbstractFetcher {
         }
         
     }
-
+    
 
     public static class UsageURL {
         ServiceType type;

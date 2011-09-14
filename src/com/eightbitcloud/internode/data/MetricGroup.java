@@ -55,6 +55,7 @@ public class MetricGroup implements NamedThing, PreferencesSerialisable {
         this.service = service;
     }
     
+    @Override
     public String getName() {
         return name;
     }
@@ -138,6 +139,7 @@ public class MetricGroup implements NamedThing, PreferencesSerialisable {
         return name;
     }
 
+    @Override
     public void writeTo(JSONObject obj) throws JSONException {
          obj.put(NAME2, name);
          obj.put(STYLE2, style.toString());
@@ -151,6 +153,7 @@ public class MetricGroup implements NamedThing, PreferencesSerialisable {
          obj.put(GRAPH_TYPES, PreferencesSerialiser.createJSONRepresentationForStrings(graphTypes));
     }
 
+    @Override
     public void readFrom(JSONObject obj) throws JSONException {
         name = obj.getString(NAME2);
         style = CounterStyle.valueOf(obj.getString(STYLE2));

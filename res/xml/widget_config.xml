@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <ListPreference android:title="Service" android:key="service" android:summary="Which service do you wish to display"></ListPreference>
+    <com.eightbitcloud.internode.ListPreferenceMultiSelect android:title="Metric" android:key="metric" android:summary="Which of the service's metrics do you wish to display (select service first)" android:dependency="service"/>
+    <ListPreference android:summary="What colour should the widget title be" android:title="Title Colour" android:key="textColour" android:entryValues="@array/widget_colour_values" android:entries="@array/widget_colour_labels" android:defaultValue="-1"></ListPreference>
+    <ListPreference android:title="Background" android:key="background" android:summary="Which background should the widget have" android:entryValues="@array/widget_background_values" android:entries="@array/widget_background_labels" android:defaultValue="0"></ListPreference>
+    
+</PreferenceScreen>

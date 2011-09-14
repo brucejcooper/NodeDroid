@@ -2,6 +2,9 @@ package com.eightbitcloud.internode.data;
 
 import java.io.Serializable;
 
+import android.content.ContentUris;
+import android.net.Uri;
+
 public class ServiceIdentifier implements Serializable {
     /**
      * 
@@ -14,6 +17,7 @@ public class ServiceIdentifier implements Serializable {
         this.provider = accountSource;
         this.accountNumber = accountNumber;
     }
+    
 
     public String getProvider() {
         return provider;
@@ -56,6 +60,6 @@ public class ServiceIdentifier implements Serializable {
 
     @Override
     public String toString() {
-        return accountNumber;
+        return provider + "/" + accountNumber;
     }
 }

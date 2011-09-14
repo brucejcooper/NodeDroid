@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URLDecoder;
-import java.security.KeyStore;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -26,7 +25,6 @@ import org.apache.http.cookie.Cookie;
 import org.apache.http.entity.BufferedHttpEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.SingleClientConnManager;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
@@ -103,6 +101,7 @@ public abstract class AbstractFetcher implements ProviderFetcher {
     }
     
 
+    @Override
     public void setLogTraffic(boolean val) {
         logTraffic = val;
     }
@@ -188,6 +187,7 @@ public abstract class AbstractFetcher implements ProviderFetcher {
     }
  
     
+    @Override
     public void cleanup() {
         if (logTraffic) {
             logWriter.get().close();

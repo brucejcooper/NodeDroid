@@ -4,10 +4,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import com.eightbitcloud.internode.GraphColors;
 
@@ -77,6 +75,7 @@ public class ProviderStore {
     public Collection<Provider> getAllProviders() {
         List<Provider> result = new ArrayList<Provider>(providers.values());
         Collections.sort(result, new Comparator<Provider>() {
+            @Override
             public int compare(Provider object1, Provider object2) {
                 return object1.getName().compareTo(object2.getName());
             }

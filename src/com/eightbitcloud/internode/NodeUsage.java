@@ -3,97 +3,52 @@ package com.eightbitcloud.internode;
 import java.io.File;
 import java.io.InputStream;
 import java.security.KeyStore;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Timer;
+import java.util.zip.Inflater;
 
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.Configuration;
+import android.database.Cursor;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.SystemClock;
 import android.util.Log;
-import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
-import android.widget.Button;
-import android.widget.FrameLayout.LayoutParams;
+import android.widget.CursorAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+import android.widget.SimpleCursorAdapter.ViewBinder;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.eightbitcloud.internode.data.Account;
+import com.eightbitcloud.internode.data.AccountProvider;
 import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
-import com.eightbitcloud.internode.data.ServiceIdentifier;
-import com.eightbitcloud.internode.data.UpdateStatus;
 
-public class NodeUsage extends Activity implements AccountUpdateListener {
+public class NodeUsage extends Activity {
     public static final String TAG = "NodeDroid";
-    
-    Handler handler;
-    private int activeNetConnections;
-    
-    Typeface internodeFont;
-    
-    Map<ServiceIdentifier, ServiceView> serviceViews = new HashMap<ServiceIdentifier, ServiceView>();
-
+    private static final int FIRST_ACCOUNT_ID = 1;
+    private Typeface internodeFont;
     private PagingScrollView scroller;
-
     private View loadingServicesView;
     private KeyStore trustStore;
-    
-    // LocalService test stuff
-    private DataFetcher dataFetcher;
-    
-    private ListView landscroller;
-
-    private LayoutInflater inflater;
-    
-    
-    private Timer clockTickTimer;
-    
-//    private boolean mIsBound;
-
-//    private ServiceConnection mConnection = new ServiceConnection() {
-//        public void onServiceConnected(ComponentName className, IBinder service) {
-//            Log.i(TAG, "Bound to service. Have we checked accounts yet? " + checkedAccounts);
-//            // This is called when the connection with the service has been
-//            // established, giving us the service object we can use to
-//            // interact with the service.  Because we have bound to a explicit
-//            // service that we know is running in our own process, we can
-//            // cast its IBinder to a concrete class and directly access it.
-//            dataFetcher = ((DataFetchService.LocalBinder)service).getService();
-//            // We want to monitor the service for as long as we are
-//            // connected to it.
-//            
-//            dataFetcher.registerCallback(NodeUsage.this);
-//            
-//            checkAccounts(); 
-//        }
-//
-//        public void onServiceDisconnected(ComponentName className) {
-//            // This is called when the connection with the service has been
-//            // unexpectedly disconnected -- that is, its process crashed.
-//            // Because it is running in our same process, we should never
-//            // see this happen.
-//            dataFetcher = null;
-//        }
-//    };
-//
-//    private boolean checkedAccounts;
-
+    private ListView landscapeList;
+    private Cursor servicesCursor;
+    private Handler handler = new Handler();
+    private Runnable updateLastUpdatedHanlder = new Runnable() {
+        @Override
+        public void run() {
+            updateLastUpdatedLabels();
+        }
+    };
     
 
 
@@ -101,83 +56,14 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        inflater = LayoutInflater.from(this);
-
-        setContentView(R.layout.main);
-        if (isDisplayPortrait()) {
-            scroller = ((PagingScrollView)findViewById(R.id.scrollView));
-        } else {
-            landscroller = (ListView) findViewById(R.id.landscroller);
-            
-            landscroller.setAdapter(new BaseAdapter() {
-                public int getCount() {
-                    return dataFetcher == null ? 0 : dataFetcher.getAllServices().size();
-                }
-
-                public Service getItem(int position) {
-                    return dataFetcher.getAllServices().get(position);
-                }
-
-                public long getItemId(int position) {
-                    return position;
-                }
-
-                public View getView(int position, View convertView, ViewGroup parent) {
-                    Service item = getItem(position);
-                    LandViewHolder holder;
-                    
-                    if (convertView == null) {
-                        convertView = inflater.inflate(R.layout.quotalandline, null);
-                        
-                        LinearLayout list = (LinearLayout) convertView.findViewById(R.id.innerlist);
-                        holder = new LandViewHolder(
-                                (TextView) convertView.findViewById(R.id.provider),
-                                (TextView) convertView.findViewById(R.id.accountname),
-                                (TextView) convertView.findViewById(R.id.serviceid),
-                                list, 
-                                new MetricGroupListAdapter(NodeUsage.this, item, internodeFont)
-                        );
-                        holder.accountType.setTypeface(internodeFont);
-                        convertView.setTag(holder);
-
-                        convertView.setLayoutParams(new ListView.LayoutParams(LayoutParams.FILL_PARENT, LayoutParams.WRAP_CONTENT));
-                    } else {
-                        holder = (LandViewHolder) convertView.getTag();
-                    }
-                    holder.accountType.setText(item.getAccount().getProvider().getName());
-                    holder.name.setText(item.getAccount().getUsername());
-                    holder.serviceID.setText(item.getIdentifier().toString());
-                    
-
-                    holder.adapter.setService(item);
-                    
-                    // Cheat by using the list adapter to create views that we add directly to a linear layout
-                    holder.innerlist.removeAllViews();
-                    for (int i = 0; i < holder.adapter.getCount(); i++) {
-                        View v = holder.adapter.getView(i, null, null);
-                        holder.innerlist.addView(v);
-                    }
-                    
-                    return convertView;
-                }
-                
-            });
-
-        }
-
         internodeFont = Typeface.createFromAsset(getAssets(), "Arial Rounded Bold.ttf");
-        handler = new Handler();
-        
-
         
         try {
-            
             // Set up our own KeyStore with the GeoTrust CA in it. This is
             // needed because Android does not have it in its keystore by
             // default. Be aware that this means that this program will now ONLY
             // accept GeoTrust certificates, so if Internode issues another one
-            // this program will break. TODO Create an all-inclusive trust
-            // store.
+            // this program will break. 
             trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
             InputStream instream = getAssets().open("my.bks");
             try {
@@ -186,45 +72,119 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
                 instream.close();
             }
             ProviderStore.getInstance().getProvider("internode").setProperty("keyStore", trustStore);
-            
-
         } catch (Exception ex) {
-            // TODO this is really bad.
+            // this is really bad, but should never happen
+        }
+        
+        servicesCursor = getContentResolver().query(AccountProvider.SERVICES_CONTENT_URI, null, null, null, null);
+
+        setContentView(R.layout.main);
+        
+        scroller = ((PagingScrollView)findViewById(R.id.scrollView));
+        if (scroller != null) { // Portrait
+            View loadingView = ((LayoutInflater)getSystemService(LAYOUT_INFLATER_SERVICE)).inflate(R.layout.loadingservices, null);
+            scroller.setNoViewsView(loadingView);
+
+            
+            CursorAdapter adapter = new CursorAdapter(this, servicesCursor) {
+                @Override
+                public void bindView(View view, Context context, Cursor cursor) {
+                    ServiceView sv = (ServiceView) view;
+                    Service service = new Service(cursor);
+                    
+                    sv.setService(service);
+                }
+
+                @Override
+                public View newView(Context context, Cursor cursor, ViewGroup parent) {
+                    View v = new ServiceView(NodeUsage.this, null, internodeFont);
+
+                    return v;
+                }
+            };
+            scroller.setAdapter(adapter);
+            
+            
+        } else { // Landscape
+            landscapeList = (ListView) findViewById(R.id.landscroller);
+            SimpleCursorAdapter adapter = new SimpleCursorAdapter(this, R.layout.quotalandline, servicesCursor,
+                    new String[] { Service.SERVICE_PROVIDER, Service.ACCOUNT_ID, Service.SERVICE_ID, Service.DATA }, 
+                    new int[] {R.id.provider, R.id.accountname, R.id.serviceid, R.id.innerlist}
+            );
+            adapter.setViewBinder(new ViewBinder() {
+                @Override
+                public boolean setViewValue(View view, Cursor cursor, int columnIndex) {
+                    if (view instanceof LinearLayout) {
+                        // CHeats way of telling that its the list :)
+                        Service srv = new Service(cursor);
+                        
+                        LinearLayout innerlist = (LinearLayout) view;
+                        innerlist.removeAllViews();
+                        
+                        MetricGroupListAdapter ad = new MetricGroupListAdapter(NodeUsage.this, srv, internodeFont);
+                        for (int i = 0; i < ad.getCount(); i++) {
+                            View v = ad.getView(i, null, null);
+                            innerlist.addView(v);
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            });
+            landscapeList.setAdapter(adapter);
         }
 
-        
-
-        
-        // Establish a connection with the service.  We use an explicit
-        // class name because we want a specific service implementation that
-        // we know will be running in our own process (and thus won't be
-        // supporting component replacement by other applications).
-     //   bindService(new Intent(NodeUsage.this, DataFetchService.class), mConnection, Context.BIND_AUTO_CREATE);
-      //  mIsBound = true;
-        dataFetcher = (DataFetcher) getLastNonConfigurationInstance();
-        if (dataFetcher == null) {
-            dataFetcher = new DataFetcher(this);
+        // Show a special activity, if no accounts exist.
+        Cursor accountCursor = getContentResolver().query(AccountProvider.ACCOUNTS_CONTENT_URI, new String[] {Account.ID}, null, null, null);
+        try {
+            if (accountCursor.getCount() == 0) {
+                startActivityForResult(new Intent(this, NoAccountsActivity.class), FIRST_ACCOUNT_ID);
+            } else {
+                updateUsage();
+            }
+        } finally {
+            accountCursor.close();
         }
-        dataFetcher.registerCallback(this);
     }
     
-
-    private void updateLandscapeView() {
-        if (landscroller != null) 
-            ((BaseAdapter)landscroller.getAdapter()).notifyDataSetChanged();
-    }
-    
-    
-    /**
-     * This is used to keep the dataFetcher around when rotation is performed, so that we don't
-     * loose time restarting things in the middle.  
-     */
     @Override
-    public Object onRetainNonConfigurationInstance() {
-        return dataFetcher;
+    public void onResume() {
+        super.onResume();
+        updateLastUpdatedLabels();
+        handler.postDelayed(updateLastUpdatedHanlder , 30*1000);
+    }
+    
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(updateLastUpdatedHanlder);
+        super.onPause();
+    }
+    
+    
+    protected void updateLastUpdatedLabels() {
+        Log.d(TAG, "Updating last updated labels.  Scroller is " + scroller);
+        if (scroller != null) {
+            for (View v: scroller.getPages()) {
+                if (v instanceof ServiceView) {
+                    ((ServiceView)v).refreshLastUpdated();
+                }
+            }
+        }
+        handler.postDelayed(updateLastUpdatedHanlder, 30*1000);
+        
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        
+        // If they canceled the "New Account", then just give up...
+        if (requestCode == FIRST_ACCOUNT_ID  && resultCode == Activity.RESULT_CANCELED) {
+            finish();
+        }
+    }
     
+
     public View getLoadingServicesView() {
         if (loadingServicesView == null) {
             LayoutInflater layoutInflater = (LayoutInflater) NodeUsage.this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -233,161 +193,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         return loadingServicesView;
     }
 
-    public boolean isDisplayPortrait() {
-        Configuration config = getResources().getConfiguration();
-        int orientation = config.orientation;
-
-        if (orientation == Configuration.ORIENTATION_UNDEFINED) {
-            Display getOrient = getWindowManager().getDefaultDisplay();
-            // if height and widht of screen are equal then
-            // it is square orientation
-            if (getOrient.getWidth() == getOrient.getHeight()) {
-                orientation = Configuration.ORIENTATION_SQUARE;
-            } else { // if widht is less than height than it is portrait
-                if (getOrient.getWidth() < getOrient.getHeight()) {
-                    orientation = Configuration.ORIENTATION_PORTRAIT;
-                } else { // if it is not any of the above it will defineitly
-                         // be landscape
-                    orientation = Configuration.ORIENTATION_LANDSCAPE;
-                }
-            }
-        }
-        return orientation == Configuration.ORIENTATION_PORTRAIT;
-    }
     
-    public void addServiceView(ServiceView v) {
-        scroller.addPage(v);
-        if (scroller.hasPage(getLoadingServicesView())) {
-            scroller.removePage(getLoadingServicesView());
-        }
-    }
-    
-    public ServiceView getViewForService(ServiceIdentifier service) {
-        ServiceView view = serviceViews.get(service);
-        if (view == null) {
-            view = new ServiceView(this, null, internodeFont);
-            addServiceView(view);
-            serviceViews.put(service, view);
-        }
-        return view;
-    }
-    
-    /**
-     * When services are removed, they have their account set to null.  This method detects these view and removes them from the scroller.
-     */
-    public void removeStaleServiceViews() {
-        for (ServiceView view: serviceViews.values()) {
-            Service service = view.getService();
-            scroller.removePage(view);
-            if (service.getAccount() == null) {
-                serviceViews.remove(service.getIdentifier());
-            }
-        }
-    }
-    
-    @Override
-    public void onStart() {
-        super.onStart();
-        
-                // If we don't deregister the callbacklistener here, it will leak...
-        if (isDisplayPortrait()) {
-            updatePortraitAccountsView();
-        }
-        
-    }
-    
-    long nextClockUpdate;
-    Runnable clockUpdateRunnable = new Runnable() {
-        public void run() {
-            for (ServiceView s: serviceViews.values()) {
-                s.refreshLastUpdated();
-            }
-            
-            nextClockUpdate = SystemClock.uptimeMillis() + 30 * 1000;
-            handler.postAtTime(clockUpdateRunnable, nextClockUpdate);
-        }
-    };
-    
-    @Override
-    protected void onResume() {
-        super.onResume();
-        
-        nextClockUpdate = SystemClock.uptimeMillis() + 30 * 1000;
-        handler.postAtTime(clockUpdateRunnable, nextClockUpdate);
-    }
-    
-    
-    public void updatePortraitAccountsView() {
-
-        scroller.removeAllPages();
-        serviceViews.clear();
-        if (dataFetcher.accounts.isEmpty()) {
-            LayoutInflater layoutInflater = (LayoutInflater) this.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            View noaccountsView = layoutInflater.inflate(R.layout.noaccounts, null);
-            Button addButton = (Button) noaccountsView.findViewById(R.id.addaccountbutton);
-            addButton.setOnClickListener(new OnClickListener() {
-                public void onClick(View v) {
-                    addFirstAccount(v);
-                }
-            });
-            
-            scroller.addPage(noaccountsView);
-        } else {
-            int countServices = 0;
-            for (Account acct: dataFetcher.accounts) {
-                for (Service service: acct.getAllServices()) {
-                    getViewForService(service.getIdentifier()).setService(service);
-                    countServices++;
-                }
-            }
-            if (countServices == 0) {
-                scroller.addPage(getLoadingServicesView());
-            }
-        }
-    }
-    
-    /**
-     * Called when the user clicks on the "Add Account" button on the "you have no accounts" view
-     * @param sourcE
-     */
-    public void addFirstAccount(View sourcE) {
-        Intent intent = new Intent(NodeUsage.this, AccountListActivity.class).setAction(Intent.ACTION_INSERT);
-        startActivityForResult(intent, 0);
-    }
-    
-    
-    
-    public synchronized void incrementActiveNetConnections(int amt) {
-        boolean runningBefore = activeNetConnections > 0;
-        
-        activeNetConnections += amt;
-        boolean runningAfterwards = activeNetConnections > 0;
-//        Log.d(TAG, "Active net connections is now " + activeNetConnections + ", before = " + runningBefore + ", after = " + runningAfterwards);
-
-
-        if (runningBefore ^ runningAfterwards) {
-//            ProgressBar progressBar = (ProgressBar) findViewById(R.id.progress);
-            if (runningBefore) {
-                // We're turing it off
-//                Log.d(TAG, "Making Progress bar invisible");
-//                progressBar.setVisibility(View.INVISIBLE);
-            } else {
-                // We're turning it on.
-//                Log.d(TAG, "Making Progress bar visible");
-//                progressBar.setVisibility(View.VISIBLE);
-            }
-        }
-    }
-    
-    public void prevPage(View source) {
-//        flipper.showPrevious();
-    }
-    public void nextPage(View source) {
-//        flipper.showNext();
-    }
-
-    
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
@@ -395,53 +201,29 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         return true;
     }
     
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(TAG, "Finished fiddling with accounts. Request Code is " + requestCode +", result is " + resultCode);
-        dataFetcher.refreshFromPreferences();
-    }
-
     
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            // For "Title only": Examples of matching an ID with one assigned in
-            //                   the XML
             case R.id.accountsMenuItem:
                 Intent intent = new Intent(this, AccountListActivity.class).setAction(Intent.ACTION_VIEW);
-                dataFetcher.cancelRunningFetches();
-                dataFetcher.saveState();
                 startActivityForResult(intent, 0);
                 return true;
             case R.id.refreshMenuItem:
                 Toast.makeText(this, "Refreshing Usage", Toast.LENGTH_SHORT).show();
-                dataFetcher.updateAccounts();
+                updateUsage();
                 return true;
-//            case R.id.browserscrapermenuitem:
-//                intent = new Intent(this, BrowserScraperActivity.class).setAction(Intent.ACTION_VIEW);
-//                dataFetcher.cancelRunningFetches();
-//                dataFetcher.saveState();
-//                startActivityForResult(intent, 0);
-//                return true;
             case R.id.settingsMenuItem:
                 intent = new Intent(this, PreferencesActivity.class).setAction(Intent.ACTION_VIEW);
-                dataFetcher.cancelRunningFetches();
-                dataFetcher.saveState();
                 startActivityForResult(intent, 0);
                 return true;
         }
         return false;
     }
 
-    
 
-    public void reportFatalException(Exception ex) {
-        reportFatalException("Error", ex);
-    }
-    public void reportFatalException(String msg, Exception ex) {
-        Log.i(TAG, "Making TOAST for error on thread: " + Thread.currentThread());
-        Toast t = Toast.makeText(this, msg + ": " + ex.getMessage(), Toast.LENGTH_LONG);
-        t.show();
+    private void updateUsage() {
+        startService(new Intent(this, UsageUpdateService.class));
     }
     
     public static File getDumpFile() {
@@ -450,13 +232,9 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
 
     @Override
     protected void onDestroy() {
-        dataFetcher.deregisterCallback(this);
+        servicesCursor.close();
         
         if (isFinishing()) {
-            Log.i(TAG, "Shutting down datafetcher");
-            dataFetcher.shutdown();
-            dataFetcher = null;
-
             File dumpFile = getDumpFile();
             if (dumpFile.exists()) {
                 dumpFile.delete();
@@ -464,109 +242,7 @@ public class NodeUsage extends Activity implements AccountUpdateListener {
         }
         
         super.onDestroy();
-//        doUnbindService();
     }
 
-    
-    /* Messages from the data fetcher service */ 
-    
-    public void startingServiceFetchForAccount(Account account) {
-        Log.i(TAG, "Account " + account + " loading services");
-        for (Service s: account.getAllServices()) {
-//            Log.i(TAG, "Setting status of " + s + " to PENDING");
-            s.setUpdateStatus(UpdateStatus.PENDING_UPDATE);
-            
-            // TODO there appears to be a race condition between the updates coming through and this view being fully initialised.  To avoid a NullPtrEx, we guard here, but it is not an ideal solution
-            if (scroller != null) {
-                getViewForService(s.getIdentifier()).setService(s);
-            }
-        }
-        // TODO Auto-generated method stub
-        
-    }
-
-    public void fetchedServiceNamesForAccount(Account account) {
-        Log.i(TAG, "Account " + account + " completed loading services");
-        // Remove any services that don't belong to the account any more.
-        
-    }
-
-    public void errorUpdatingServices(Account account, Exception ex) {
-        Log.e(TAG, "Account " + account + " got error while updating services", ex);
-        if (!(ex instanceof InterruptedException)) {
-            reportFatalException(ex);
-        }
-        for (Service s: account.getAllServices()) {
-            s.setUpdateStatus(UpdateStatus.IDLE);
-            if (isDisplayPortrait()) {
-                if (scroller != null) {
-                    getViewForService(s.getIdentifier()).setService(s);
-                }
-            }
-        }
-        updateLandscapeView();
-    }
-
-    public void serviceUpdateStarted(Service service) {
-        Log.i(TAG, "Service " + service + " beginning update");
-        service.setUpdateStatus(UpdateStatus.UPDATING);
-        if (isDisplayPortrait()) {
-            if (scroller != null) {
-                getViewForService(service.getIdentifier()).setService(service);
-            }
-        } else {
-            updateLandscapeView();
-        }
-        
-    }
-
-    public void serviceUpdated(Service service) {
-        Log.i(TAG, "Service " + service + " finished updating");
-        service.setUpdateStatus(UpdateStatus.IDLE);
-        if (isDisplayPortrait()) {
-            if (scroller != null) {
-                ServiceView sv = getViewForService(service.getIdentifier()); 
-                sv.setService(service);
-            }
-        } else {
-            updateLandscapeView();
-        }
-    }
-
-    public void errorUpdatingService(Service service, Exception ex) {
-        Log.e(TAG, "Service " + service + " had error while refreshing", ex);
-        service.setUpdateStatus(UpdateStatus.IDLE);
-        if (isDisplayPortrait()) {
-            ServiceView sv = getViewForService(service.getIdentifier()); 
-            sv.setService(service);
-        } else {
-            updateLandscapeView();
-        }
-        if (!(ex instanceof InterruptedException)) {
-            reportFatalException("Error updating " + service.getIdentifier(), ex);
-        }
-    }
-
-    
 
 }
-
-
-
-class LandViewHolder {
-    TextView accountType;
-    TextView name;
-    TextView serviceID;
-    LinearLayout innerlist;
-    MetricGroupListAdapter adapter;
-    
-    public LandViewHolder(TextView accountType, TextView name, TextView serviceID, LinearLayout listView, MetricGroupListAdapter metricGroupListAdapter) {
-        this.accountType = accountType;
-        this.name = name;
-        this.serviceID = serviceID;
-        this.innerlist = listView;
-        this.adapter = metricGroupListAdapter;
-    }
-}
-
-

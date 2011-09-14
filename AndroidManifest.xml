@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-	package="com.eightbitcloud.internode" android:versionName="2.14"
-	android:versionCode="20">
+	package="com.eightbitcloud.internode" android:versionName="3.01"
+	android:versionCode="23">
 	<application android:icon="@drawable/nodedroid"	android:label="@string/app_name" >
 		<activity android:name=".NodeUsage" android:label="@string/app_name" android:theme="@android:style/Theme.Light">
 			<intent-filter>
@@ -24,21 +24,12 @@
 				<action android:name="android.intent.action.VIEW" />
 			</intent-filter>
 		</activity>
-<!-- 
-		<activity android:name=".BrowserScraperActivity" android:label="@string/browserscraper"
-     		android:theme="@android:style/Theme.NoTitleBar">
-			<intent-filter>
-				<category android:name="android.intent.category.PREFERENCE" />
-				<action android:name="android.intent.action.VIEW" />
-			</intent-filter>
-     	</activity>
-     	
-     	<activity android:name=".NodeDroidWidgetConfigure" android:label="Configure Widget">
-			<intent-filter>
-				<action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
-			</intent-filter>
-     	</activity>
-     
+ 
+		<activity android:name=".NoAccountsActivity" android:label="@string/noaccounts">
+		</activity>
+		
+		<activity android:name="com.eightbitcloud.internode.NodeDroidWidgetConfigure" android:label="NodeDroid Widget" android:exported="true">
+		</activity>
 
 
 		<receiver android:name=".NodeDroidWidgetProvider">
@@ -48,7 +39,14 @@
 			<meta-data android:name="android.appwidget.provider"
 				android:resource="@xml/usage_appwidget_info" />
 		</receiver>
--->
+		
+		<provider android:name="com.eightbitcloud.internode.data.AccountProvider"
+          android:authorities="com.eightbitcloud.internode.accountprovider">
+		</provider>
+		
+		
+		<service android:name=".UsageUpdateService"/>
+		
 		<meta-data android:value="a14c806b710009e" android:name="ADMOB_PUBLISHER_ID" />
 	</application>
 

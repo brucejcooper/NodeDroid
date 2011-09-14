@@ -1,129 +1,71 @@
 package com.eightbitcloud.internode;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import android.app.AlertDialog;
-import android.app.Application;
 import android.app.Dialog;
 import android.app.ListActivity;
 import android.app.ProgressDialog;
+import android.content.ContentUris;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
-import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
 import android.widget.Spinner;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.eightbitcloud.internode.data.Account;
+import com.eightbitcloud.internode.data.AccountProvider;
 import com.eightbitcloud.internode.data.Provider;
 import com.eightbitcloud.internode.data.ProviderStore;
-import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.provider.ProviderFetcher;
 import com.eightbitcloud.internode.provider.WrongPasswordException;
 
 public class AccountListActivity extends ListActivity {
-    private LayoutInflater mInflater;
     private  static final int USER_PASS_ID = 0;
-    private List<Account> accounts = new ArrayList<Account>();
     private ArrayAdapter<CharSequence> providerSpinnerAdapter;
-    
+    private Cursor accountCursor;
     private int editedRow = -1;
     
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        mInflater = LayoutInflater.from(this);
         
         setContentView(R.layout.accountlist);
         
-        setListAdapter(new BaseAdapter() {
-            public int getCount() {
-                return accounts.size();
-            }
-
-            public Account getItem(int position) {
-                return accounts.get(position);
-            }
-
-            public long getItemId(int position) {
-                return position;
-            }
-            
-            public View getView(int position, View convertView, ViewGroup parent) {
-                ViewHolder holder;
-                
-                if (convertView == null) {
-                    convertView = mInflater.inflate(R.layout.accountlistcell, null);
-
-                    // Creates a ViewHolder and store references to the two children views
-                    // we want to bind data to.
-                    holder = new ViewHolder();
-                    holder.nameView = (TextView) convertView.findViewById(R.id.accountname);
-                    holder.accountView = (TextView) convertView.findViewById(R.id.accountnumber);
-                    holder.providerView = (TextView) convertView.findViewById(R.id.providername);
-                    convertView.setTag(holder);
-                } else {
-                    // Get the ViewHolder back to get fast access to the TextView
-                    // and the ImageView.
-                    holder = (ViewHolder) convertView.getTag();
-                }
-                Account account = getItem(position);
-                holder.nameView.setText(account.getUsername());
-                holder.providerView.setText(account.getProvider().getName());
-                StringBuilder sb = new StringBuilder();
-                for (Service service: account.getAllServices()) {
-                    if (sb.length() != 0) {
-                        sb.append(", ");
-                    }
-                    sb.append(service.getIdentifier());
-                }
-                holder.accountView.setText(sb.toString());
-                
-                return convertView;
-            }
-        });
+        accountCursor = getContentResolver().query(AccountProvider.ACCOUNTS_CONTENT_URI, null, null, null, Account.ID);
+        
+        setListAdapter(new SimpleCursorAdapter(this, R.layout.accountlistcell, accountCursor, new String[] {Account.PROVIDER, Account.USERNAME} , new int[] {R.id.providername, R.id.accountname}));
         
         findViewById(R.id.addaccountbutton).setOnClickListener(new OnClickListener() {
+            @Override
             public void onClick(View v) {
                 createNewAccount();
             }
         });
-        
-        
-        
-
     }
-    
-    
-    private SharedPreferences getAccountPreferences() {
-        return getApplication().getSharedPreferences(PreferencesSerialiser.PREFS_FILE, Application.MODE_PRIVATE);
-    }
-    
-
     
     @Override
     public void onStart() {
         super.onStart();
-        PreferencesSerialiser.deserialise(getAccountPreferences(), accounts);
-        Log.d(NodeUsage.TAG, "Starting accountlist, accts is " + accounts);
-        ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
-        if (accounts.isEmpty()) {
+        if (accountCursor.getCount() == 0) {
             createNewAccount();
         }
+    }
+    
+    @Override
+    protected void onStop() {
+        // Tell the update service to refresh usage for the new accounts;
+        startService(new Intent(this, UsageUpdateService.class));
+        super.onStop();
     }
     
     private void createNewAccount() {
@@ -133,18 +75,11 @@ public class AccountListActivity extends ListActivity {
     }
     
     public void deleteAccount(int index) {
-        accounts.remove(index);
-        ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
-
+        Cursor c = (Cursor) getListAdapter().getItem(index);
+        int id = c.getInt(c.getColumnIndex(Account.ID));
+        getContentResolver().delete(ContentUris.withAppendedId(AccountProvider.ACCOUNTS_CONTENT_URI, id), null, null);
     }
     
-    @Override
-    public void onPause() {
-        super.onPause();
-        
-        PreferencesSerialiser.serialise(accounts, getAccountPreferences());
-        Log.d(NodeUsage.TAG, "Pausing accountlist, accts is " + accounts);
-    }
     
     @Override
     public void onPrepareDialog(int id, Dialog dialog) {
@@ -153,11 +88,12 @@ public class AccountListActivity extends ListActivity {
         EditText passwordEditor= (EditText) dialog.findViewById(R.id.password_editor);
         Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
         if (editedRow >= 0) {
-            Account account = (Account) getListAdapter().getItem(editedRow);
+            Cursor c = (Cursor) getListAdapter().getItem(editedRow);
+            Account account = new Account(c);
             usernameEditor.setText(account.getUsername());
             passwordEditor.setText(account.getPassword());
             
-            providerSpinner.setSelection(providerSpinnerAdapter.getPosition(account.getProvider().getName()));
+            providerSpinner.setSelection(providerSpinnerAdapter.getPosition(account.getProviderName().toLowerCase()));
             
             deleteButton.setEnabled(true);
         } else {
@@ -175,12 +111,14 @@ public class AccountListActivity extends ListActivity {
         builder.setMessage(msg)
                .setCancelable(true)
                .setPositiveButton("Yes", new DialogInterface.OnClickListener() {
-                   public void onClick(DialogInterface confirmDialog, int id) {
+                   @Override
+                public void onClick(DialogInterface confirmDialog, int id) {
                        confirmDialog.cancel();
                        r.run();
                    }
                }).setNegativeButton("No", new DialogInterface.OnClickListener() {
-                   public void onClick(DialogInterface confirmDialog, int id) {
+                   @Override
+                public void onClick(DialogInterface confirmDialog, int id) {
                        confirmDialog.cancel();
                   }
               });
@@ -204,7 +142,7 @@ public class AccountListActivity extends ListActivity {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
 
             final Spinner providerSpinner= (Spinner) dialog.findViewById(R.id.providerSpinner);
-            providerSpinnerAdapter = (ArrayAdapter<CharSequence>) new ArrayAdapter(this, android.R.layout.simple_spinner_item, ProviderStore.getInstance().getProviderNames());   
+            providerSpinnerAdapter = new ArrayAdapter<CharSequence>(this, android.R.layout.simple_spinner_item, ProviderStore.getInstance().getProviderNames());   
             providerSpinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             providerSpinner.setAdapter(providerSpinnerAdapter);
 
@@ -224,11 +162,12 @@ public class AccountListActivity extends ListActivity {
                     dummyAccount.setPassword(password);
                     // TODO need separate IDs from text
                     Object sel = providerSpinner.getSelectedItem();
-                    dummyAccount.setProvider(ProviderStore.getInstance().getProvider(sel.toString().toLowerCase()));
+                    dummyAccount.setProviderName(sel.toString().toLowerCase());
                     new PasswordCheckerTask().execute(dummyAccount);
 
                 }
                 
+                @Override
                 public void onClick(View v) {
                     
                     String selectedProvider = (String) providerSpinner.getSelectedItem();
@@ -236,6 +175,7 @@ public class AccountListActivity extends ListActivity {
                     
                     if (provider.isBeta()) {
                         showConfirmDialog("This provider is in beta, and may not work correctly.  Please only use this provider if you are willing to provide feedback to the author.  Continue?", new Runnable() {
+                            @Override
                             public void run() {
                                 performSave();
                             }
@@ -249,6 +189,7 @@ public class AccountListActivity extends ListActivity {
             
             Button cancelButton = (Button) dialog.findViewById(R.id.userdialog_cancel);
             cancelButton.setOnClickListener(new View.OnClickListener() {
+                @Override
                 public void onClick(View v) {
                     dismissDialog(USER_PASS_ID);
                 }
@@ -259,8 +200,10 @@ public class AccountListActivity extends ListActivity {
             
             Button deleteButton = (Button) dialog.findViewById(R.id.userdialog_delete);
             deleteButton.setOnClickListener(new View.OnClickListener() {
+                @Override
                 public void onClick(View v) {
                     showConfirmDialog("Are you sure you want to delete this account?", new Runnable() {
+                        @Override
                         public void run() {
                             dismissDialog(USER_PASS_ID);
                             deleteAccount(editedRow);
@@ -294,6 +237,7 @@ public class AccountListActivity extends ListActivity {
             super.onPreExecute();
             progressDialog = ProgressDialog.show(AccountListActivity.this, "Logging in", "Please wait...", true);
             progressDialog.setOnCancelListener(new OnCancelListener() {
+                @Override
                 public void onCancel(DialogInterface dialog) {
                     // TODO cancel the task
                 }
@@ -317,7 +261,6 @@ public class AccountListActivity extends ListActivity {
                 errorMessage = "Username or password wrong";
                 return false;
             } catch (Exception e) {
-                // TODO Auto-generated catch block
                 errorMessage = e.getMessage();
                 e.printStackTrace();
                 return false;
@@ -331,16 +274,15 @@ public class AccountListActivity extends ListActivity {
             progressDialog.dismiss();
             if (result) {
                 // Add the account...
-                if (editedRow != -1) {
-                    accounts.set(editedRow, account);
+                if (account.getId() != 0) {
+                    getContentResolver().update(account.getUri(), account.getValues(), null, null);
                 } else {
-                    accounts.add(account);
+                    getContentResolver().insert(AccountProvider.ACCOUNTS_CONTENT_URI, account.getValues());
                 }
-                ((BaseAdapter)getListAdapter()).notifyDataSetChanged();
-
 
                 String action = getIntent().getAction();
                 if (action.equals(Intent.ACTION_INSERT)) {
+                    AccountListActivity.this.setResult(RESULT_OK);
                     AccountListActivity.this.finish();
                 }
                 dismissDialog(USER_PASS_ID);
@@ -359,9 +301,9 @@ public class AccountListActivity extends ListActivity {
     }
     
     
-    static class ViewHolder {
-        TextView nameView;
-        TextView providerView;
-        TextView accountView; 
-    }
+//    static class ViewHolder {
+//        TextView nameView;
+//        TextView providerView;
+//        TextView accountView; 
+//    }
 }

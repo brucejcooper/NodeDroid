@@ -2,8 +2,11 @@ package com.eightbitcloud.internode;
 
 import java.util.List;
 
+import com.eightbitcloud.internode.R;
 import com.eightbitcloud.internode.ServiceView.ViewHolder;
 import com.eightbitcloud.internode.data.MetricGroup;
+import com.eightbitcloud.internode.data.Provider;
+import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
 
 import android.content.Context;
@@ -33,19 +36,23 @@ public class MetricGroupListAdapter extends BaseAdapter {
         notifyDataSetChanged();
     }
 
+    @Override
     public int getCount() {
         return service == null ? 0 : service.getMetricGroupCount();
     }
 
+    @Override
     public MetricGroup getItem(int position) {
         List<MetricGroup> groups = service.getAllMetricGroups();
         return groups.get(position);
     }
 
+    @Override
     public long getItemId(int position) {
         return position;
     }
 
+    @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         MetricGroup item = getItem(position);
         ViewHolder holder;
@@ -75,7 +82,8 @@ public class MetricGroupListAdapter extends BaseAdapter {
         default:
             if (holder.graph == null) {
                 holder.graph = (QuotaBarGraph) convertView.findViewById(R.id.metricgroupgraph);
-                holder.graph.setGraphColors(service.getAccount().getProvider().getGraphColors());
+                Provider prov = ProviderStore.getInstance().getProvider(service.getIdentifier().getProvider());
+                holder.graph.setGraphColors(prov.getGraphColors());
             }
             holder.graph.setUsage(item.getComponents(), item.getAllocation());
             holder.graph.setTime(service.getPlan() == null ? 0.0f : (float) service.getPlan().getPercentgeThroughMonth(System.currentTimeMillis()));

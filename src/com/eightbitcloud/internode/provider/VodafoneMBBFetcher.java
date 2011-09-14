@@ -97,6 +97,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
         }
     }
 
+    @Override
     public List<ServiceUpdateDetails> fetchAccountUpdates(Account account) throws AccountUpdateException, InterruptedException {
         try {
             List<ServiceUpdateDetails> result = new ArrayList<ServiceUpdateDetails>();
@@ -145,9 +146,9 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
                 }
             }
             
-            account.setProperty(REMAINING_DATA, remainingData.getPrefValue());
-            account.setProperty(REMAINING_SMS, remainingSMS.getPrefValue());
-            
+//            account.setProperty(REMAINING_DATA, remainingData.getPrefValue());
+//            account.setProperty(REMAINING_SMS, remainingSMS.getPrefValue());
+//            TODO this ins't right at all
 
             startTable = loginResult.indexOf("List of mobile numbers on account with associated charges\">", endTable);
             if (startTable == -1) {
@@ -204,16 +205,19 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
     
     
 
-    public void fetchServiceDetails(Service service) throws AccountUpdateException, InterruptedException {
+    @Override
+    public Service fetchServiceDetails(Account account, ServiceUpdateDetails updateDetails) throws AccountUpdateException, InterruptedException {
         try {
-            
+            Service service = new Service(account, updateDetails);
+
             MetricGroup dataGroup = new MetricGroup(service, DATA_GROUP, Unit.BYTE, CounterStyle.SIMPLE);
             dataGroup.setGraphTypes(UsageGraphType.ALL_USAGE);
             dataGroup.setStyle(CounterStyle.SIMPLE);
         
             MeasuredValue dataMval = new MeasuredValue(Unit.BYTE);
             dataMval.setName(USAGE);
-            dataMval.setAmount(new Value(service.getAccount().getProperty(REMAINING_DATA)));
+            // TODO check this!
+//            dataMval.setAmount(new Value(service.getAccount().getProperty(REMAINING_DATA)));
             dataGroup.setComponents(Collections.singletonList(dataMval));
             service.addMetricGroup(dataGroup);
 
@@ -223,7 +227,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
             smsGroup.setStyle(CounterStyle.SIMPLE);
             MeasuredValue smsMval = new MeasuredValue(Unit.COUNT);
             smsMval.setName(USAGE);
-            smsMval.setAmount(new Value(service.getAccount().getProperty(REMAINING_SMS)));
+//            smsMval.setAmount(new Value(service.getAccount().getProperty(REMAINING_SMS)));
             smsGroup.setComponents(Collections.singletonList(smsMval));
             service.addMetricGroup(smsGroup);
             
@@ -261,7 +265,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
                 Date date = expiryDateFormatter.parse(row[1].substring(0,startOfBullshit) + row[2] + ":00" + row[1].substring(startOfBullshit+8));
                 
                 String destination= row[3];
-                String classification = row[4];
+//                String classification = row[4];
                 
                 Value amt;
                 if (row[5].equals("-")) {
@@ -285,6 +289,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
             }
             
             
+            return service;
         } catch (ParseException ex) {
             throw new AccountUpdateException("Error logging in", ex);
         } catch (IOException ex) {
@@ -292,6 +297,7 @@ public class VodafoneMBBFetcher extends AbstractFetcher {
         }
     } 
 
+    @Override
     public void testUsernameAndPassword(Account account) throws AccountUpdateException, WrongPasswordException {
         try {
             login(account);

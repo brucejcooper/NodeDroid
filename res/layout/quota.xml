@@ -23,9 +23,9 @@
 			<FrameLayout android:layout_width="43px" android:layout_height="43px">
 				<ProgressBar style="?android:attr/progressBarStyleSmall"
 					android:layout_width="fill_parent" android:layout_height="fill_parent"
-					android:indeterminate="true" android:visibility="invisible"
+					android:indeterminate="true"
 					 android:id="@+id/progress" />
-				<ImageView android:layout_width="fill_parent" android:layout_height="fill_parent" android:id="@+id/pendingImage" android:background="@drawable/pending" android:visibility="invisible"/>
+				<ImageView android:layout_width="fill_parent" android:layout_height="fill_parent" android:id="@+id/pendingImage"/>
 			</FrameLayout>
 			<TextView android:layout_width="wrap_content" android:textColor="#7000" android:layout_height="wrap_content" android:id="@+id/lastUpdated"  android:textSize="4pt"/>
 		</LinearLayout>

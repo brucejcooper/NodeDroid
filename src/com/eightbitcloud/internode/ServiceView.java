@@ -4,9 +4,11 @@ import java.util.Date;
 import java.util.List;
 
 import android.content.Context;
+import android.content.pm.ProviderInfo;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
@@ -17,10 +19,12 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.eightbitcloud.internode.R;
 import com.eightbitcloud.internode.data.CounterStyle;
 import com.eightbitcloud.internode.data.MetricGroup;
 import com.eightbitcloud.internode.data.Plan;
 import com.eightbitcloud.internode.data.Provider;
+import com.eightbitcloud.internode.data.ProviderStore;
 import com.eightbitcloud.internode.data.Service;
 import com.eightbitcloud.internode.data.Value;
 import com.eightbitcloud.internode.util.DateTools;
@@ -30,11 +34,10 @@ public class ServiceView extends FrameLayout {
     private Service service;
     private ListView metricGroupView;
     private MetricGroupListAdapter listAdapter;
-    LayoutInflater inflater;
     private String selectedMetricGroupName;
     
     UsageGraphView graphView;
-    private boolean loading;
+//    private boolean loading;
     
     
     public ServiceView(Context context, AttributeSet attrs, final Typeface font) {
@@ -61,6 +64,7 @@ public class ServiceView extends FrameLayout {
         metricGroupView.setAdapter(listAdapter);
         metricGroupView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         metricGroupView.setOnItemClickListener(new OnItemClickListener() {
+            @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 MetricGroup group = (MetricGroup) listAdapter.getItem(position);
                 setSelectedMetricGroup(group);
@@ -86,25 +90,32 @@ public class ServiceView extends FrameLayout {
             progressBar.setVisibility(View.INVISIBLE);
             imageView.setVisibility(View.INVISIBLE);
             break;
+        case STALE:
         case PENDING_UPDATE:
             progressBar.setVisibility(View.INVISIBLE);
             imageView.setVisibility(View.VISIBLE);
+            imageView.setImageResource(R.drawable.pending);
             break;
         case UPDATING:
             progressBar.setVisibility(View.VISIBLE);
             imageView.setVisibility(View.INVISIBLE);
             break;
+        case FAILED:
+            progressBar.setVisibility(View.INVISIBLE);
+            imageView.setImageResource(R.drawable.problem);
+            imageView.setVisibility(View.VISIBLE);
+            break;
                 
         }
         refreshLastUpdated();
         
-        Provider prov = service.getAccount().getProvider();
+        Provider prov = ProviderStore.getInstance().getProvider(service.getIdentifier().getProvider());
         int resid = getResources().getIdentifier(prov.getBackgroundResource(), "drawable", this.getClass().getPackage().getName());
         TextView serviceID = (TextView) findViewById(R.id.serviceid);
         
         serviceID.setBackgroundResource(resid);
         serviceID.setTextColor(Color.parseColor(prov.getTextColour()));
-        graphView.setGraphColors(service.getAccount().getProvider().getGraphColors());
+        graphView.setGraphColors(prov.getGraphColors());
         
         
         update();
@@ -160,7 +171,7 @@ public class ServiceView extends FrameLayout {
     public void update() {
         Plan plan = service.getPlan();
 
-        ((TextView) findViewById(R.id.serviceid)).setText(service.getIdentifier().toString());
+        ((TextView) findViewById(R.id.serviceid)).setText(service.getIdentifier().getAccountNumber());
         ((TextView) findViewById(R.id.plan)).setText(plan == null ? "" : plan.getName());
 
         

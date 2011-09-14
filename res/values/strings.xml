@@ -52,6 +52,8 @@
 <string name="browserscraper">Browser Scraper</string>
 <string name="browserscraper_summary">Use an embedded browser to teach NodeDroid what your usage looks like</string>
 
+<string name="create_widget">Save Widget Settings</string>
 
-
+<string name="noaccounts">First Account Creation</string>
+<string name="loadingservices">Loading services for your accounts. This usually is only shown when you are loading usage for the first time.  It should be replaced by your account in a few seconds.</string>
 </resources>

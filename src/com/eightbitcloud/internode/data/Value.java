@@ -68,6 +68,7 @@ public class Value implements Comparable<Value> {
         return unit;
     }
 
+    @Override
     public int compareTo(Value another) {
         ensureCompatibleWith(another);
         long diff = this.amt = another.amt;

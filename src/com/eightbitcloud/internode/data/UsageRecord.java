@@ -52,6 +52,7 @@ public class UsageRecord implements PreferencesSerialisable {
         this.description = description;
     }
 
+    @Override
     public void writeTo(JSONObject obj) throws JSONException {
         obj.put(TIME2, time.getTime());
         obj.put(AMOUNT2, amount.getPrefValue());
@@ -59,6 +60,7 @@ public class UsageRecord implements PreferencesSerialisable {
         obj.put(DESCRIPTION2, description);
     }
 
+    @Override
     public void readFrom(JSONObject obj) throws JSONException {
         time = new Date(obj.getLong(TIME2));
         amount = new Value(obj.getString(AMOUNT2));
