@@ -83,7 +83,7 @@ public class OptusFetcher extends AbstractFetcher {
 
     public OptusFetcher(Provider provider, Context ctx) {
         super(provider, ctx);
-        melbourneTZ = TimeZone.getTimeZone("GMT+1000");
+        melbourneTZ = TimeZone.getTimeZone("GMT+1000");	//TODO adjustment for Melbourne Daylight Saving Time (GMT+1100)
         rolloverFormatter.setTimeZone(melbourneTZ);
     }
     
@@ -376,7 +376,7 @@ public class OptusFetcher extends AbstractFetcher {
             }
             plan.setCost(parseAmount(costMatcher, 1, false));
             
-            Pattern capSizePattern = Pattern.compile("\\$([0-9]+(.[0-9]{2})?)\\s+\\(\\$([0-9]+(.[0-9]{2})?) ex GST\\) of cap");
+            Pattern capSizePattern = Pattern.compile("\\$([0-9]+(.[0-9]{2})?)\\s+\\(\\$([0-9]+(.[0-9]{2})?) ex GST\\) of [(cap)(included value)]");
             Matcher capSizeMatcher = capSizePattern.matcher(planExt);
             
             if (capSizeMatcher.find()) {
